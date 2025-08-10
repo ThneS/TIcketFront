@@ -1,0 +1,8 @@
+[
+  {"type":"event","name":"Swap","inputs":[{"indexed":true,"name":"sender","type":"address"},{"indexed":false,"name":"amountIn","type":"uint256"},{"indexed":false,"name":"amountOut","type":"uint256"}],"anonymous":false},
+  {"type":"function","stateMutability":"view","name":"getReserves","inputs":[],"outputs":[{"name":"reserveA","type":"uint256"},{"name":"reserveB","type":"uint256"}]},
+  {"type":"function","stateMutability":"view","name":"getAmountOut","inputs":[{"name":"amountIn","type":"uint256"},{"name":"reserveIn","type":"uint256"},{"name":"reserveOut","type":"uint256"}],"outputs":[{"name":"","type":"uint256"}]},
+  {"type":"function","stateMutability":"nonpayable","name":"swapExactTokensForTokens","inputs":[{"name":"amountIn","type":"uint256"},{"name":"amountOutMin","type":"uint256"},{"name":"to","type":"address"},{"name":"deadline","type":"uint256"}],"outputs":[]},
+  {"type":"function","stateMutability":"nonpayable","name":"addLiquidity","inputs":[{"name":"amountA","type":"uint256"},{"name":"amountB","type":"uint256"}],"outputs":[{"name":"liquidity","type":"uint256"}]},
+  {"type":"function","stateMutability":"nonpayable","name":"removeLiquidity","inputs":[{"name":"liquidity","type":"uint256"}],"outputs":[{"name":"amountA","type":"uint256"},{"name":"amountB","type":"uint256"}]}
+]

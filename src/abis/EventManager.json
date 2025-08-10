@@ -1,0 +1,53 @@
+[
+  {
+    "type": "event",
+    "name": "EventCreated",
+    "inputs": [
+      {"indexed": true, "name": "eventId", "type": "uint256"},
+      {"indexed": true, "name": "organizer", "type": "address"},
+      {"indexed": false, "name": "name", "type": "string"}
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "function",
+    "stateMutability": "view",
+    "name": "getAllEvents",
+    "inputs": [],
+    "outputs": [{"name": "", "type": "uint256[]"}]
+  },
+  {
+    "type": "function",
+    "stateMutability": "view",
+    "name": "getEvent",
+    "inputs": [{"name": "eventId", "type": "uint256"}],
+    "outputs": [
+      {"name": "id", "type": "uint256"},
+      {"name": "name", "type": "string"},
+      {"name": "description", "type": "string"},
+      {"name": "venue", "type": "string"},
+      {"name": "startTime", "type": "uint256"},
+      {"name": "endTime", "type": "uint256"},
+      {"name": "ticketPrice", "type": "uint256"},
+      {"name": "maxTickets", "type": "uint256"},
+      {"name": "soldTickets", "type": "uint256"},
+      {"name": "organizer", "type": "address"},
+      {"name": "isActive", "type": "bool"}
+    ]
+  },
+  {
+    "type": "function",
+    "stateMutability": "nonpayable",
+    "name": "createEvent",
+    "inputs": [
+      {"name": "name", "type": "string"},
+      {"name": "description", "type": "string"},
+      {"name": "venue", "type": "string"},
+      {"name": "startTime", "type": "uint256"},
+      {"name": "endTime", "type": "uint256"},
+      {"name": "ticketPrice", "type": "uint256"},
+      {"name": "maxTickets", "type": "uint256"}
+    ],
+    "outputs": [{"name": "", "type": "uint256"}]
+  }
+]

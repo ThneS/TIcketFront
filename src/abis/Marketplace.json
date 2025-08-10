@@ -1,0 +1,10 @@
+[
+  {"type":"event","name":"OrderCreated","inputs":[{"indexed":true,"name":"orderId","type":"uint256"},{"indexed":true,"name":"seller","type":"address"},{"indexed":false,"name":"tokenId","type":"uint256"},{"indexed":false,"name":"price","type":"uint256"}],"anonymous":false},
+  {"type":"event","name":"OrderCancelled","inputs":[{"indexed":true,"name":"orderId","type":"uint256"}],"anonymous":false},
+  {"type":"event","name":"OrderFilled","inputs":[{"indexed":true,"name":"orderId","type":"uint256"},{"indexed":true,"name":"buyer","type":"address"}],"anonymous":false},
+  {"type":"function","stateMutability":"nonpayable","name":"list","inputs":[{"name":"tokenId","type":"uint256"},{"name":"price","type":"uint256"}],"outputs":[{"name":"orderId","type":"uint256"}]},
+  {"type":"function","stateMutability":"nonpayable","name":"cancel","inputs":[{"name":"orderId","type":"uint256"}],"outputs":[]},
+  {"type":"function","stateMutability":"payable","name":"buy","inputs":[{"name":"orderId","type":"uint256"}],"outputs":[]},
+  {"type":"function","stateMutability":"view","name":"getOrder","inputs":[{"name":"orderId","type":"uint256"}],"outputs":[{"name":"tokenId","type":"uint256"},{"name":"seller","type":"address"},{"name":"price","type":"uint256"},{"name":"isActive","type":"bool"}]},
+  {"type":"function","stateMutability":"view","name":"getActiveOrders","inputs":[],"outputs":[{"name":"","type":"uint256[]"}]}
+]

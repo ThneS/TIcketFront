@@ -1,0 +1,47 @@
+[
+  {
+    "type": "event",
+    "name": "TicketMinted",
+    "inputs": [
+      {"indexed": true, "name": "eventId", "type": "uint256"},
+      {"indexed": true, "name": "to", "type": "address"},
+      {"indexed": false, "name": "tokenId", "type": "uint256"}
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "function",
+    "stateMutability": "payable",
+    "name": "mintTicket",
+    "inputs": [
+      {"name": "eventId", "type": "uint256"},
+      {"name": "quantity", "type": "uint256"}
+    ],
+    "outputs": [{"name": "", "type": "uint256[]"}]
+  },
+  {
+    "type": "function",
+    "stateMutability": "view",
+    "name": "balanceOf",
+    "inputs": [ {"name": "owner", "type": "address"} ],
+    "outputs": [ {"name": "", "type": "uint256"} ]
+  },
+  {
+    "type": "function",
+    "stateMutability": "nonpayable",
+    "name": "transferFrom",
+    "inputs": [
+      {"name": "from", "type": "address"},
+      {"name": "to", "type": "address"},
+      {"name": "tokenId", "type": "uint256"}
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "stateMutability": "view",
+    "name": "tokenURI",
+    "inputs": [ {"name": "tokenId", "type": "uint256"} ],
+    "outputs": [ {"name": "", "type": "string"} ]
+  }
+]

@@ -1,6 +1,12 @@
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { createEventSchema, type CreateEventInput, validateEventChronology } from '../schemas/event';
+import { useCreateEvent } from '../hooks/useContracts';
+
 // 重新导出真实的页面组件
 export { EventDetail } from './EventDetail';
 export { MyTickets } from './MyTickets';
+export { CreateEvent } from './CreateEvent';
 
 // 临时页面组件
 export function Marketplace() {
@@ -36,19 +42,6 @@ export function Profile() {
       <div className="bg-card text-card-foreground rounded-lg border p-6">
         <p className="text-muted-foreground">
           个人资料页面正在开发中，将包含用户设置和活动历史。
-        </p>
-      </div>
-    </div>
-  );
-}
-
-export function CreateEvent() {
-  return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">创建活动</h1>
-      <div className="bg-card text-card-foreground rounded-lg border p-6">
-        <p className="text-muted-foreground">
-          创建活动功能正在开发中，将支持活动信息填写、门票配置、智能合约部署等功能。
         </p>
       </div>
     </div>
