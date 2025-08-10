@@ -7,6 +7,8 @@ import { ABIS, getAddress } from '../abis';
 import { useAccount } from 'wagmi';
 import { useToast } from '../components/feedback/ToastProvider';
 import { useTxQueue } from '../lib/txQueue';
+import { mapError } from '../lib/errors';
+import { startSpan, endSpan, logError } from '../lib/observability';
 
 // Event 数据类型
 export interface Event {
@@ -172,6 +174,7 @@ export function useCreateEvent() {
     if (!address) throw new Error('请先连接钱包');
     if (!eventManagerAddress) throw new Error('缺少 EventManager 地址');
 
+    const span = startSpan('createEvent');
     try {
       const tempId = trackWalletAction({ title: '创建活动', description: eventData.name, chainId: chain?.id });
       tempRef.current = tempId;
@@ -190,9 +193,13 @@ export function useCreateEvent() {
         ],
       });
     } catch (e: any) {
-      if (tempRef.current) markFailed(hashRef.current as any, e?.message);
-      push({ type: 'error', title: '创建失败', description: e?.shortMessage || e?.message });
+      const mapped = mapError(e);
+      if (tempRef.current) markFailed(hashRef.current as any, mapped.rawMessage);
+      push({ type: 'error', title: '创建失败', description: mapped.message });
+      logError('createEvent failed', e);
       throw e;
+    } finally {
+      endSpan(span);
     }
   };
 
@@ -283,8 +290,9 @@ export function useMintTicket() {
         value: totalPrice,
       });
     } catch (e: any) {
-      if (tempRef.current) markFailed(hashRef.current as any, e?.message);
-      push({ type: 'error', title: '购票失败', description: e?.shortMessage || e?.message });
+      const mapped = mapError(e);
+      if (tempRef.current) markFailed(hashRef.current as any, mapped.rawMessage);
+      push({ type: 'error', title: '购票失败', description: mapped.message });
       throw e;
     }
   };
@@ -342,8 +350,9 @@ export function useTransferTicket() {
         args: [address, to as `0x${string}`, BigInt(tokenId)],
       });
     } catch (e: any) {
-      if (tempRef.current) markFailed(hashRef.current as any, e?.message);
-      push({ type: 'error', title: '转让失败', description: e?.shortMessage || e?.message });
+      const mapped = mapError(e);
+      if (tempRef.current) markFailed(hashRef.current as any, mapped.rawMessage);
+      push({ type: 'error', title: '转让失败', description: mapped.message });
       throw e;
     }
   };

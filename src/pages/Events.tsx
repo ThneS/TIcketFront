@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { WalletAwareButton } from '../components/auth/WalletAwareButton';
 import { useGetAllEvents, type Event } from '../hooks/useContracts';
 import { formatEther } from 'viem';
+import { formatDate } from '../lib/time';
 
 // 用于模拟数据的事件接口（与真实Event接口兼容）
 interface MockEvent {
@@ -171,7 +172,7 @@ export function Events() {
                 <div className="space-y-2 mb-4">
                   <div className="flex justify-between items-center text-sm text-muted-foreground">
                     <span className="flex items-center gap-1">
-                      📅 {eventDate.toLocaleDateString('zh-CN')}
+                      📅 {formatDate(eventDate)}
                     </span>
                     <span className="flex items-center gap-1">
                       📍 {eventData.venue}

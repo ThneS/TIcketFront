@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useWallet } from '../hooks/useWallet';
+import { formatDateTime } from '../lib/time';
 import { useGetAllEvents } from '../hooks/useContracts';
 
 interface Ticket {
@@ -193,13 +194,7 @@ export function MyTickets() {
                       <div className="flex items-center gap-2">
                         <span>📅</span>
                         <span>
-                          {ticket.eventDate.toLocaleDateString('zh-CN', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
+                          {formatDateTime(ticket.eventDate)}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
