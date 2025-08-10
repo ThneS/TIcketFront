@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { routes } from '../router';
+import { TxCenterDropdown } from '../components/tx/TxCenter';
 
 export function Header() {
   const location = useLocation();
@@ -32,6 +33,7 @@ export function Header() {
 
         {/* Wallet Connection */}
         <div className="flex items-center space-x-4">
+          <TxCenterDropdown />
           <ConnectButton />
         </div>
       </div>

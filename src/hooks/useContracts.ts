@@ -1,4 +1,5 @@
 import { useReadContract, useWriteContract, useWaitForTransactionReceipt, usePublicClient } from 'wagmi';
+import { useQueryClient } from '@tanstack/react-query';
 import { parseEther, decodeEventLog } from 'viem';
 import React, { useState } from 'react';
 import { useWallet } from './useWallet';
@@ -48,14 +49,21 @@ export function useGetAllEvents() {
       setEventsLoading(true);
       setBatchError(undefined);
       try {
-        const tasks = (eventIds as bigint[]).map(async (id) => {
-          try {
-            const data: any = await publicClient.readContract({
-              address: eventManagerAddress,
-              abi: ABIS.eventManager,
-              functionName: 'getEvent',
-              args: [id],
-            });
+        // multicall 优化批量读取
+        const contracts = (eventIds as bigint[]).map((id) => ({
+          address: eventManagerAddress,
+          abi: ABIS.eventManager as any,
+          functionName: 'getEvent' as const,
+          args: [id] as const,
+        }));
+        const multiRes = await publicClient.multicall({
+          contracts,
+          allowFailure: true,
+        });
+        const results = multiRes.map((res, idx) => {
+          const id = eventIds[idx] as bigint;
+          if (res.status === 'success') {
+            const data: any = res.result;
             return {
               id: data[0] as bigint,
               name: data[1] as string,
@@ -69,24 +77,22 @@ export function useGetAllEvents() {
               organizer: data[9] as string,
               isActive: data[10] as boolean,
             } satisfies Event;
-          } catch (e: any) {
-            // 单个失败不阻断，返回占位以便 UI 可见其余
-            return {
-              id,
-              name: '加载失败',
-              description: e?.shortMessage || e?.message || '无法获取活动详情',
-              venue: '-',
-              startTime: new Date(0),
-              endTime: new Date(0),
-              ticketPrice: BigInt(0),
-              maxTickets: BigInt(0),
-              soldTickets: BigInt(0),
-              organizer: '0x0000000000000000000000000000000000000000',
-              isActive: false,
-            } satisfies Event;
           }
+          const e: any = res.error;
+          return {
+            id,
+            name: '加载失败',
+            description: e?.shortMessage || e?.message || '无法获取活动详情',
+            venue: '-',
+            startTime: new Date(0),
+            endTime: new Date(0),
+            ticketPrice: BigInt(0),
+            maxTickets: BigInt(0),
+            soldTickets: BigInt(0),
+            organizer: '0x0000000000000000000000000000000000000000',
+            isActive: false,
+          } satisfies Event;
         });
-        const results = await Promise.all(tasks);
         if (!cancelled) {
           // 按 id 排序，保证稳定
           setEvents(results.sort((a,b) => (a.id < b.id ? -1 : 1)));
@@ -152,6 +158,7 @@ export function useCreateEvent() {
   const { trackWalletAction, markSent, markConfirming, markSuccess, markFailed } = useTxQueue();
   const tempRef = React.useRef<string | null>(null);
   const hashRef = React.useRef<`0x${string}` | undefined>(undefined);
+  const queryClient = useQueryClient();
 
   const createEvent = async (eventData: {
     name: string;
@@ -233,6 +240,14 @@ export function useCreateEvent() {
     }
   }, [isSuccess, receipt, eventManagerAddress, newEventId]);
 
+  // 成功后失效事件列表查询
+  React.useEffect(() => {
+    if (isSuccess) {
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      if (newEventId) queryClient.invalidateQueries({ queryKey: ['event', newEventId.toString()] });
+    }
+  }, [isSuccess, newEventId, queryClient]);
+
   return { createEvent, hash, isPending, isConfirming, isSuccess, error, newEventId };
 }
 
@@ -247,6 +262,8 @@ export function useMintTicket() {
   const { trackWalletAction, markSent, markConfirming, markSuccess, markFailed } = useTxQueue();
   const tempRef = React.useRef<string | null>(null);
   const hashRef = React.useRef<`0x${string}` | undefined>(undefined);
+  const queryClient = useQueryClient();
+  const targetEventRef = React.useRef<string | null>(null);
 
   const mintTicket = async (eventId: string, quantity: number, ticketPrice: bigint) => {
     if (!address) throw new Error('请先连接钱包');
@@ -255,7 +272,8 @@ export function useMintTicket() {
     const totalPrice = ticketPrice * BigInt(quantity);
 
     try {
-      const tempId = trackWalletAction({ title: '购票', description: `活动 #${eventId} x${quantity}`, chainId: chain?.id });
+  targetEventRef.current = eventId;
+  const tempId = trackWalletAction({ title: '购票', description: `活动 #${eventId} x${quantity}`, chainId: chain?.id });
       tempRef.current = tempId;
       writeContract({
         address: ticketManagerAddress,
@@ -286,6 +304,13 @@ export function useMintTicket() {
     if (isSuccess && hashRef.current) markSuccess(hashRef.current);
   }, [isSuccess, markSuccess]);
 
+  React.useEffect(() => {
+    if (isSuccess) {
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      if (targetEventRef.current) queryClient.invalidateQueries({ queryKey: ['event', targetEventRef.current] });
+    }
+  }, [isSuccess, queryClient]);
+
   return { mintTicket, hash, isPending, isConfirming, isSuccess, error };
 }
 
@@ -300,6 +325,8 @@ export function useTransferTicket() {
   const { trackWalletAction, markSent, markConfirming, markSuccess, markFailed } = useTxQueue();
   const tempRef = React.useRef<string | null>(null);
   const hashRef = React.useRef<`0x${string}` | undefined>(undefined);
+  const queryClient = useQueryClient();
+  const targetEventRef = React.useRef<string | null>(null); // 若未来需要由 tokenId 推断 event
 
   const transferTicket = async (to: string, tokenId: string) => {
     if (!address) throw new Error('请先连接钱包');
@@ -335,6 +362,13 @@ export function useTransferTicket() {
   React.useEffect(() => {
     if (isSuccess && hashRef.current) markSuccess(hashRef.current);
   }, [isSuccess, markSuccess]);
+
+  React.useEffect(() => {
+    if (isSuccess) {
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      if (targetEventRef.current) queryClient.invalidateQueries({ queryKey: ['event', targetEventRef.current] });
+    }
+  }, [isSuccess, queryClient]);
 
   return { transferTicket, hash, isPending, isConfirming, isSuccess, error };
 }
