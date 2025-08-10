@@ -147,3 +147,76 @@ VITE_WALLET_CONNECT_PROJECT_ID=xxxxx
 ---
 
 此计划随版本推进迭代更新，重大调整需在 PR 中同步 docs。
+
+---
+
+## 扩展 Roadmap 批次（后续规划）
+
+### 批次 A：多票种事件 & Swap 基础
+
+**目标**：支持一个活动多票种定义及基础代币兑换报价/执行。
+**任务**：
+
+- [ ] ticketTierSchema / createEventSchemaV2（多票种）
+- [ ] CreateEvent V2 动态票种 UI（增删/校验/预览）
+- [ ] EventDetail 显示票种列表 + 选择购票
+- [ ] useReserves / useSwapQuote（3s 轮询 + 输入 debounce）
+- [ ] Swap 页面：方向切换、滑点设置、报价展示、执行按钮
+- [ ] 乐观更新：创建活动时注入占位 event + tiers
+
+### 批次 B：Ticket 使用 / 核销 & Telemetry 基础
+
+**目标**：门票使用状态流转；错误聚合上报。
+**任务**：
+
+- [ ] 扩展 TicketManager ABI（useTicket / TicketUsed 事件）
+- [ ] useUseTicket hook + 乐观状态 (valid→usedPending→used)
+- [ ] MyTickets 接入使用按钮与状态刷新
+- [ ] telemetryBuffer store（聚合 mapError 输出）
+- [ ] Query/Mutation onError 接入 pushError
+- [ ] 定时/阈值 flush /api/telemetry/errors（失败重试）
+- [ ] 错误去重（message+category+1min 窗口）
+
+### 批次 C：数据源抽象 & Off-chain 索引
+
+**目标**：可切换链上直接读取与 TheGraph/自建 API。
+**任务**：
+
+- [ ] eventsSource 接口（list/detail/userTickets）
+- [ ] onChainSource 封装现有合约读逻辑
+- [ ] graphSource 占位（GraphQL 查询样例）
+- [ ] 配置切换 VITE_DATA_SOURCE=chain|graph|api
+- [ ] Fallback：graph 失败回退链上
+- [ ] 缓存 key 标准化：['events', source, filters]
+
+### 批次 D：PWA / 缓存策略
+
+**目标**：离线体验 + 静态资源优化。
+**任务**：
+
+- [ ] 集成 vite-plugin-pwa + manifest/icons
+- [ ] 预缓存静态构建产物 + runtime 缓存策略
+- [ ] offline.html + UI 提示
+- [ ] events 快照持久化（localStorage / IndexedDB）
+- [ ] React Query 持久化（过滤敏感数据）
+- [ ] SW 更新提示“新版本可用”
+
+### 批次 E：增强与体验打磨
+
+**目标**：提高可用性与可观测性。
+**任务**：
+
+- [ ] ENS 解析 + 地址输入自动格式化
+- [ ] 价格影响 / 高滑点风险提示
+- [ ] TxCenter 懒加载 & 列表虚拟化（大量交易）
+- [ ] 时区/本地化时间选项
+- [ ] 动态日志级别切换（UI 按钮）
+
+### 批次 F：后续扩展（预研）
+
+**可能方向**：
+
+- Off-chain 活动推荐算法 / 排序
+- 实时订阅 (WebSocket) 增量刷新 events/orders
+- QR 核销签名校验（后端）
+- Bundle 分析与微前端拆分
