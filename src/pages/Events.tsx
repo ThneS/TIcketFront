@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { WalletAwareButton } from '../components/auth/WalletAwareButton';
 import { useGetAllEvents, type Event } from '../hooks/useContracts';
 import { formatEther } from 'viem';
 
@@ -124,12 +125,7 @@ export function Events() {
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">活动列表</h1>
-        <button
-          onClick={() => navigate('/create-event')}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded transition-colors"
-        >
-          创建活动
-        </button>
+  <WalletAwareButton onClick={() => navigate('/create-event')}>创建活动</WalletAwareButton>
       </div>
 
       {error && (
@@ -206,15 +202,12 @@ export function Events() {
                   <span className="text-lg font-bold text-blue-600">
                     {ticketPrice} ETH
                   </span>
-                  <button
+                  <WalletAwareButton
                     onClick={(e) => {
                       e.stopPropagation();
                       handleEventClick(eventData.id || index + 1);
                     }}
-                    className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition-colors"
-                  >
-                    查看详情
-                  </button>
+                  >查看详情</WalletAwareButton>
                 </div>
               </div>
             </div>

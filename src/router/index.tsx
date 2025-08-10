@@ -3,6 +3,7 @@ import { Layout } from '../layout';
 import { Home } from '../pages/Home';
 import { Events } from '../pages/Events';
 import { EventDetail, MyTickets, Marketplace, TokenSwap, Profile, CreateEvent, Wallet } from '../pages';
+import { RequireWallet } from '../components/auth/RequireWallet';
 
 export const router = createBrowserRouter([
   {
@@ -23,7 +24,11 @@ export const router = createBrowserRouter([
       },
       {
         path: 'my-tickets',
-        element: <MyTickets />,
+        element: (
+          <RequireWallet>
+            <MyTickets />
+          </RequireWallet>
+        ),
       },
       {
         path: 'wallet',

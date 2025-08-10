@@ -28,7 +28,7 @@ export function MyTickets() {
     }
 
     // 获取用户门票数据
-    const fetchTickets = async () => {
+  const fetchTickets = async () => {
       setLoading(true);
 
       try {
@@ -39,7 +39,8 @@ export function MyTickets() {
         // 3. 检查门票状态（是否已使用）
 
         // 暂时使用模拟数据，但结构与真实数据保持一致
-        const mockTickets: Ticket[] = events ? [
+  // (占位) 未来这里将从链上读取用户 TicketToken 列表并映射到活动
+  const mockTickets: Ticket[] = events ? [
           {
             id: '1',
             eventId: 1,
