@@ -1,12 +1,8 @@
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { createEventSchema, type CreateEventInput, validateEventChronology } from '../schemas/event';
-import { useCreateEvent } from '../hooks/useContracts';
-
 // 重新导出真实的页面组件
-export { EventDetail } from './EventDetail';
-export { MyTickets } from './MyTickets';
-export { CreateEvent } from './CreateEvent';
+export { EventDetail } from "./EventDetail";
+export { MyTickets } from "./MyTickets";
+
+export { CreateShow } from "./CreateShow";
 
 // 临时页面组件
 export function Marketplace() {

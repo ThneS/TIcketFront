@@ -1,13 +1,21 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom';
-import { Layout } from '../layout';
-import { Home } from '../pages/Home';
-import { Events } from '../pages/Events';
-import { EventDetail, MyTickets, Marketplace, TokenSwap, Profile, CreateEvent, Wallet } from '../pages';
-import { RequireWallet } from '../components/auth/RequireWallet';
+import { createBrowserRouter, Navigate } from "react-router-dom";
+import { Layout } from "../layout";
+import { Home } from "../pages/Home";
+import { Events } from "../pages/Events";
+import {
+  EventDetail,
+  MyTickets,
+  Marketplace,
+  TokenSwap,
+  Profile,
+  CreateShow,
+  Wallet,
+} from "../pages";
+import { RequireWallet } from "../components/auth/RequireWallet";
 
 export const router = createBrowserRouter([
   {
-    path: '/',
+    path: "/",
     element: <Layout />,
     children: [
       {
@@ -15,15 +23,15 @@ export const router = createBrowserRouter([
         element: <Home />,
       },
       {
-        path: 'events',
+        path: "events",
         element: <Events />,
       },
       {
-        path: 'events/:id',
+        path: "events/:id",
         element: <EventDetail />,
       },
       {
-        path: 'my-tickets',
+        path: "my-tickets",
         element: (
           <RequireWallet>
             <MyTickets />
@@ -31,27 +39,27 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: 'wallet',
+        path: "wallet",
         element: <Wallet />,
       },
       {
-        path: 'marketplace',
+        path: "marketplace",
         element: <Marketplace />,
       },
       {
-        path: 'swap',
+        path: "swap",
         element: <TokenSwap />,
       },
       {
-        path: 'profile',
+        path: "profile",
         element: <Profile />,
       },
       {
-        path: 'create-event',
-        element: <CreateEvent />,
+        path: "create-event",
+        element: <CreateShow />,
       },
       {
-        path: '*',
+        path: "*",
         element: <Navigate to="/" replace />,
       },
     ],
@@ -61,29 +69,29 @@ export const router = createBrowserRouter([
 // 路由配置
 export const routes = [
   {
-    path: '/',
-    name: '首页',
-    icon: 'Home',
+    path: "/",
+    name: "首页",
+    icon: "Home",
   },
   {
-    path: '/events',
-    name: '活动',
-    icon: 'Calendar',
+    path: "/events",
+    name: "活动",
+    icon: "Calendar",
   },
   {
-    path: '/my-tickets',
-    name: '我的门票',
-    icon: 'Ticket',
+    path: "/my-tickets",
+    name: "我的门票",
+    icon: "Ticket",
     requireAuth: true,
   },
   {
-    path: '/marketplace',
-    name: '市场',
-    icon: 'ShoppingBag',
+    path: "/marketplace",
+    name: "市场",
+    icon: "ShoppingBag",
   },
   {
-    path: '/swap',
-    name: '交换',
-    icon: 'ArrowLeftRight',
+    path: "/swap",
+    name: "交换",
+    icon: "ArrowLeftRight",
   },
 ] as const;

@@ -1,21 +1,26 @@
-import { useReadContract, useWriteContract, useWaitForTransactionReceipt, usePublicClient } from 'wagmi';
-import { useQueryClient } from '@tanstack/react-query';
-import { parseEther, decodeEventLog } from 'viem';
-import React, { useState } from 'react';
-import { useWallet } from './useWallet';
-import { ABIS, getAddress } from '../abis';
-import { useAccount } from 'wagmi';
-import { useToast } from '../components/feedback/ToastProvider';
-import { useTxQueue } from '../lib/txQueue';
-import { mapError } from '../lib/errors';
-import { startSpan, endSpan, logError } from '../lib/observability';
+import {
+  useReadContract,
+  useWriteContract,
+  useWaitForTransactionReceipt,
+  usePublicClient,
+} from "wagmi";
+import { useQueryClient } from "@tanstack/react-query";
+import { parseEther, decodeEventLog } from "viem";
+import React, { useState } from "react";
+import { useWallet } from "./useWallet";
+import { ABIS, getAddress } from "../abis";
+import { useAccount } from "wagmi";
+import { useToast } from "../components/feedback/ToastProvider";
+import { useTxQueue } from "../lib/txQueue";
+import { mapError } from "../lib/errors";
+import { startSpan, endSpan, logError } from "../lib/observability";
 
 // Event 数据类型
 export interface Event {
   id: bigint;
   name: string;
   description: string;
-  venue: string;
+  location: string;
   startTime: Date;
   endTime: Date;
   ticketPrice: bigint;
@@ -29,11 +34,16 @@ export interface Event {
 export function useGetAllEvents() {
   const { chain } = useAccount();
   const publicClient = usePublicClient();
-  const eventManagerAddress = getAddress('eventManager', chain?.id);
-  const { data: eventIdsRaw, isLoading, error, refetch } = useReadContract({
+  const eventManagerAddress = getAddress("eventManager", chain?.id);
+  const {
+    data: eventIdsRaw,
+    isLoading,
+    error,
+    refetch,
+  } = useReadContract({
     address: eventManagerAddress,
     abi: ABIS.eventManager,
-    functionName: 'getAllEvents',
+    functionName: "getAllEvents",
     query: { enabled: !!eventManagerAddress },
   });
   const eventIds = eventIdsRaw as readonly bigint[] | undefined;
@@ -45,8 +55,14 @@ export function useGetAllEvents() {
   React.useEffect(() => {
     let cancelled = false;
     async function loadDetails() {
-      if (!publicClient || !eventManagerAddress || !eventIds || eventIds.length === 0) {
-        setEvents([]); return;
+      if (
+        !publicClient ||
+        !eventManagerAddress ||
+        !eventIds ||
+        eventIds.length === 0
+      ) {
+        setEvents([]);
+        return;
       }
       setEventsLoading(true);
       setBatchError(undefined);
@@ -55,7 +71,7 @@ export function useGetAllEvents() {
         const contracts = (eventIds as bigint[]).map((id) => ({
           address: eventManagerAddress,
           abi: ABIS.eventManager as any,
-          functionName: 'getEvent' as const,
+          functionName: "getEvent" as const,
           args: [id] as const,
         }));
         const multiRes = await publicClient.multicall({
@@ -64,13 +80,13 @@ export function useGetAllEvents() {
         });
         const results = multiRes.map((res, idx) => {
           const id = eventIds[idx] as bigint;
-          if (res.status === 'success') {
+          if (res.status === "success") {
             const data: any = res.result;
             return {
               id: data[0] as bigint,
               name: data[1] as string,
               description: data[2] as string,
-              venue: data[3] as string,
+              location: data[3] as string,
               startTime: new Date(Number(data[4]) * 1000),
               endTime: new Date(Number(data[5]) * 1000),
               ticketPrice: data[6] as bigint,
@@ -83,21 +99,21 @@ export function useGetAllEvents() {
           const e: any = res.error;
           return {
             id,
-            name: '加载失败',
-            description: e?.shortMessage || e?.message || '无法获取活动详情',
-            venue: '-',
+            name: "加载失败",
+            description: e?.shortMessage || e?.message || "无法获取活动详情",
+            location: "-",
             startTime: new Date(0),
             endTime: new Date(0),
             ticketPrice: BigInt(0),
             maxTickets: BigInt(0),
             soldTickets: BigInt(0),
-            organizer: '0x0000000000000000000000000000000000000000',
+            organizer: "0x0000000000000000000000000000000000000000",
             isActive: false,
           } satisfies Event;
         });
         if (!cancelled) {
           // 按 id 排序，保证稳定
-          setEvents(results.sort((a,b) => (a.id < b.id ? -1 : 1)));
+          setEvents(results.sort((a, b) => (a.id < b.id ? -1 : 1)));
         }
       } catch (e: any) {
         if (!cancelled) setBatchError(e);
@@ -106,7 +122,9 @@ export function useGetAllEvents() {
       }
     }
     loadDetails();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [eventIds, eventManagerAddress, publicClient]);
 
   return {
@@ -120,83 +138,125 @@ export function useGetAllEvents() {
 // Hook: 获取单个活动
 export function useGetEvent(eventId: string | undefined) {
   const { chain } = useAccount();
-  const eventManagerAddress = getAddress('eventManager', chain?.id);
-  type EventTuple = [bigint,string,string,string,bigint,bigint,bigint,bigint,bigint,string,boolean];
-  const { data: eventDataRaw, isLoading, error, refetch } = useReadContract({
+  const eventManagerAddress = getAddress("eventManager", chain?.id);
+  type EventTuple = [
+    bigint,
+    string,
+    string,
+    string,
+    bigint,
+    bigint,
+    bigint,
+    bigint,
+    bigint,
+    string,
+    boolean
+  ];
+  const {
+    data: eventDataRaw,
+    isLoading,
+    error,
+    refetch,
+  } = useReadContract({
     address: eventManagerAddress,
     abi: ABIS.eventManager,
-    functionName: 'getEvent',
+    functionName: "getEvent",
     args: eventId && eventManagerAddress ? [BigInt(eventId)] : undefined,
     query: { enabled: !!eventId && !!eventManagerAddress },
   });
   const eventData = eventDataRaw as unknown as EventTuple | undefined;
 
-  const event: Event | undefined = eventData ? {
-    id: eventData[0],
-    name: eventData[1],
-    description: eventData[2],
-    venue: eventData[3],
-    startTime: new Date(Number(eventData[4]) * 1000),
-    endTime: new Date(Number(eventData[5]) * 1000),
-    ticketPrice: eventData[6],
-    maxTickets: eventData[7],
-    soldTickets: eventData[8],
-    organizer: eventData[9],
-    isActive: eventData[10],
-  } : undefined;
+  const event: Event | undefined = eventData
+    ? {
+        id: eventData[0],
+        name: eventData[1],
+        description: eventData[2],
+        location: eventData[3],
+        startTime: new Date(Number(eventData[4]) * 1000),
+        endTime: new Date(Number(eventData[5]) * 1000),
+        ticketPrice: eventData[6],
+        maxTickets: eventData[7],
+        soldTickets: eventData[8],
+        organizer: eventData[9],
+        isActive: eventData[10],
+      }
+    : undefined;
 
   return { event, isLoading, error, refetch };
 }
 
 // Hook: 创建活动
-export function useCreateEvent() {
+export function useCreateShow() {
   const { address } = useWallet();
   const { chain } = useAccount();
   const { push } = useToast();
-  const eventManagerAddress = getAddress('eventManager', chain?.id);
+  const showManagerAddress = getAddress("showManager", chain?.id);
   const { writeContract, data: hash, isPending, error } = useWriteContract();
-  const { data: receipt, isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+  const {
+    data: receipt,
+    isLoading: isConfirming,
+    isSuccess,
+  } = useWaitForTransactionReceipt({ hash });
   const [newEventId, setNewEventId] = React.useState<bigint | null>(null);
-  const { trackWalletAction, markSent, markConfirming, markSuccess, markFailed } = useTxQueue();
+  const {
+    trackWalletAction,
+    markSent,
+    markConfirming,
+    markSuccess,
+    markFailed,
+  } = useTxQueue();
   const tempRef = React.useRef<string | null>(null);
   const hashRef = React.useRef<`0x${string}` | undefined>(undefined);
+  const submittingRef = React.useRef<boolean>(false);
+  const didSentRef = React.useRef<boolean>(false);
+  const didConfirmingRef = React.useRef<boolean>(false);
+  const didSuccessRef = React.useRef<boolean>(false);
   const queryClient = useQueryClient();
 
-  const createEvent = async (eventData: {
+  const createShow = async (showData: {
     name: string;
     description: string;
-    venue: string;
+    location: string;
     startTime: Date;
     endTime: Date;
     ticketPrice: string;
-    maxTickets: number;
+    totalTickets: number;
+    ipfs_cid: string;
   }) => {
-    if (!address) throw new Error('请先连接钱包');
-    if (!eventManagerAddress) throw new Error('缺少 EventManager 地址');
+    if (!address) throw new Error("请先连接钱包");
+    if (!showManagerAddress) throw new Error("缺少 ShowManager 地址");
+    if (submittingRef.current) return; // 防重复提交
 
-    const span = startSpan('createEvent');
+    const span = startSpan("createShow");
     try {
-      const tempId = trackWalletAction({ title: '创建活动', description: eventData.name, chainId: chain?.id });
+      submittingRef.current = true;
+      const tempId = trackWalletAction({
+        title: "创建活动",
+        description: showData.name,
+        chainId: chain?.id,
+      });
       tempRef.current = tempId;
       writeContract({
-        address: eventManagerAddress,
-        abi: ABIS.eventManager,
-        functionName: 'createEvent',
+        address: showManagerAddress,
+        abi: ABIS.showManager,
+        functionName: "createShow",
         args: [
-          eventData.name,
-          eventData.description,
-          eventData.venue,
-          BigInt(Math.floor(eventData.startTime.getTime() / 1000)),
-          BigInt(Math.floor(eventData.endTime.getTime() / 1000)),
-          parseEther(eventData.ticketPrice),
-          BigInt(eventData.maxTickets),
+          showData.name,
+          showData.description,
+          BigInt(Math.floor(showData.startTime.getTime() / 1000)),
+          BigInt(Math.floor(showData.endTime.getTime() / 1000)),
+          showData.location,
+          BigInt(showData.totalTickets),
+          parseEther(showData.ticketPrice),
+          showData.ipfs_cid,
         ],
       });
     } catch (e: any) {
       const mapped = mapError(e);
-      if (tempRef.current) markFailed(hashRef.current as any, mapped.rawMessage);
-      push({ type: 'error', title: '创建失败', description: mapped.message });
-      logError('createEvent failed', e);
+      if (tempRef.current)
+        markFailed(hashRef.current as any, mapped.rawMessage);
+      push({ type: "error", title: "创建失败", description: mapped.message });
+      logError("createShow failed", e);
       throw e;
     } finally {
       endSpan(span);
@@ -204,38 +264,50 @@ export function useCreateEvent() {
   };
 
   React.useEffect(() => {
-    if (hash && tempRef.current) {
+    if (hash && tempRef.current && !didSentRef.current) {
       hashRef.current = hash;
       markSent(tempRef.current, hash);
+      didSentRef.current = true;
     }
   }, [hash, markSent]);
 
   React.useEffect(() => {
-    if (isConfirming && hashRef.current) markConfirming(hashRef.current);
+    if (isConfirming && hashRef.current && !didConfirmingRef.current) {
+      markConfirming(hashRef.current);
+      didConfirmingRef.current = true;
+    }
+    if (!isConfirming) {
+      didConfirmingRef.current = false;
+    }
   }, [isConfirming, markConfirming]);
 
   React.useEffect(() => {
-    if (isSuccess && hashRef.current) markSuccess(hashRef.current);
+    if (isSuccess && hashRef.current && !didSuccessRef.current) {
+      markSuccess(hashRef.current);
+      didSuccessRef.current = true;
+    }
   }, [isSuccess, markSuccess]);
 
-  // 解析链上日志获取新创建的 eventId
+  // 解析链上日志获取新创建的 showId
   React.useEffect(() => {
-    if (!isSuccess || !receipt || !eventManagerAddress) return;
+    if (!isSuccess || !receipt || !showManagerAddress) return;
     if (newEventId) return; // 已解析
     try {
-  for (const log of receipt.logs || []) {
+      for (const log of receipt.logs || []) {
         try {
           const parsed = decodeEventLog({
-            abi: ABIS.eventManager,
+            abi: ABIS.showManager,
             data: log.data,
-    topics: log.topics as [signature: `0x${string}`, ...args: `0x${string}`[]],
+            topics: log.topics as [
+              signature: `0x${string}`,
+              ...args: `0x${string}`[]
+            ],
           });
-          if (parsed.eventName === 'EventCreated') {
-    // EventCreated(eventId, organizer, name)
-    // parsed.args 可能是具名或位置数组
-    const args: any = parsed.args as any;
-    const id: bigint | undefined = args?.eventId ?? args?.[0];
-    if (typeof id === 'bigint') setNewEventId(id);
+          if (parsed.eventName === "ShowCreated") {
+            // parsed.args 可能是具名或位置数组
+            const args: any = parsed.args as any;
+            const id: bigint | undefined = args?.showId ?? args?.[0];
+            if (typeof id === "bigint") setNewEventId(id);
             break;
           }
         } catch (_) {
@@ -245,17 +317,33 @@ export function useCreateEvent() {
     } catch (e) {
       // 解析失败不阻断主流程
     }
-  }, [isSuccess, receipt, eventManagerAddress, newEventId]);
+  }, [isSuccess, receipt, showManagerAddress, newEventId]);
+
+  // 交易生命周期结束后释放提交锁
+  React.useEffect(() => {
+    if (!isPending && !isConfirming) submittingRef.current = false;
+  }, [isPending, isConfirming]);
 
   // 成功后失效事件列表查询
   React.useEffect(() => {
     if (isSuccess) {
-      queryClient.invalidateQueries({ queryKey: ['events'] });
-      if (newEventId) queryClient.invalidateQueries({ queryKey: ['event', newEventId.toString()] });
+      queryClient.invalidateQueries({ queryKey: ["events"] });
+      if (newEventId)
+        queryClient.invalidateQueries({
+          queryKey: ["event", newEventId.toString()],
+        });
     }
   }, [isSuccess, newEventId, queryClient]);
 
-  return { createEvent, hash, isPending, isConfirming, isSuccess, error, newEventId };
+  return {
+    createShow,
+    hash,
+    isPending,
+    isConfirming,
+    isSuccess,
+    error,
+    newEventId,
+  };
 }
 
 // Hook: 购买门票
@@ -263,36 +351,53 @@ export function useMintTicket() {
   const { address } = useWallet();
   const { chain } = useAccount();
   const { push } = useToast();
-  const ticketManagerAddress = getAddress('ticketManager', chain?.id);
+  const ticketManagerAddress = getAddress("ticketManager", chain?.id);
   const { writeContract, data: hash, isPending, error } = useWriteContract();
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
-  const { trackWalletAction, markSent, markConfirming, markSuccess, markFailed } = useTxQueue();
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
+    hash,
+  });
+  const {
+    trackWalletAction,
+    markSent,
+    markConfirming,
+    markSuccess,
+    markFailed,
+  } = useTxQueue();
   const tempRef = React.useRef<string | null>(null);
   const hashRef = React.useRef<`0x${string}` | undefined>(undefined);
   const queryClient = useQueryClient();
   const targetEventRef = React.useRef<string | null>(null);
 
-  const mintTicket = async (eventId: string, quantity: number, ticketPrice: bigint) => {
-    if (!address) throw new Error('请先连接钱包');
-    if (!ticketManagerAddress) throw new Error('缺少 TicketManager 地址');
+  const mintTicket = async (
+    eventId: string,
+    quantity: number,
+    ticketPrice: bigint
+  ) => {
+    if (!address) throw new Error("请先连接钱包");
+    if (!ticketManagerAddress) throw new Error("缺少 TicketManager 地址");
 
     const totalPrice = ticketPrice * BigInt(quantity);
 
     try {
-  targetEventRef.current = eventId;
-  const tempId = trackWalletAction({ title: '购票', description: `活动 #${eventId} x${quantity}`, chainId: chain?.id });
+      targetEventRef.current = eventId;
+      const tempId = trackWalletAction({
+        title: "购票",
+        description: `活动 #${eventId} x${quantity}`,
+        chainId: chain?.id,
+      });
       tempRef.current = tempId;
       writeContract({
         address: ticketManagerAddress,
         abi: ABIS.ticketManager,
-        functionName: 'mintTicket',
+        functionName: "mintTicket",
         args: [BigInt(eventId), BigInt(quantity)],
         value: totalPrice,
       });
     } catch (e: any) {
       const mapped = mapError(e);
-      if (tempRef.current) markFailed(hashRef.current as any, mapped.rawMessage);
-      push({ type: 'error', title: '购票失败', description: mapped.message });
+      if (tempRef.current)
+        markFailed(hashRef.current as any, mapped.rawMessage);
+      push({ type: "error", title: "购票失败", description: mapped.message });
       throw e;
     }
   };
@@ -314,8 +419,11 @@ export function useMintTicket() {
 
   React.useEffect(() => {
     if (isSuccess) {
-      queryClient.invalidateQueries({ queryKey: ['events'] });
-      if (targetEventRef.current) queryClient.invalidateQueries({ queryKey: ['event', targetEventRef.current] });
+      queryClient.invalidateQueries({ queryKey: ["events"] });
+      if (targetEventRef.current)
+        queryClient.invalidateQueries({
+          queryKey: ["event", targetEventRef.current],
+        });
     }
   }, [isSuccess, queryClient]);
 
@@ -327,32 +435,45 @@ export function useTransferTicket() {
   const { address } = useWallet();
   const { chain } = useAccount();
   const { push } = useToast();
-  const ticketManagerAddress = getAddress('ticketManager', chain?.id);
+  const ticketManagerAddress = getAddress("ticketManager", chain?.id);
   const { writeContract, data: hash, isPending, error } = useWriteContract();
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
-  const { trackWalletAction, markSent, markConfirming, markSuccess, markFailed } = useTxQueue();
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
+    hash,
+  });
+  const {
+    trackWalletAction,
+    markSent,
+    markConfirming,
+    markSuccess,
+    markFailed,
+  } = useTxQueue();
   const tempRef = React.useRef<string | null>(null);
   const hashRef = React.useRef<`0x${string}` | undefined>(undefined);
   const queryClient = useQueryClient();
   const targetEventRef = React.useRef<string | null>(null); // 若未来需要由 tokenId 推断 event
 
   const transferTicket = async (to: string, tokenId: string) => {
-    if (!address) throw new Error('请先连接钱包');
-    if (!ticketManagerAddress) throw new Error('缺少 TicketManager 地址');
+    if (!address) throw new Error("请先连接钱包");
+    if (!ticketManagerAddress) throw new Error("缺少 TicketManager 地址");
 
     try {
-      const tempId = trackWalletAction({ title: '转让门票', description: `Token #${tokenId}`, chainId: chain?.id });
+      const tempId = trackWalletAction({
+        title: "转让门票",
+        description: `Token #${tokenId}`,
+        chainId: chain?.id,
+      });
       tempRef.current = tempId;
       writeContract({
         address: ticketManagerAddress,
         abi: ABIS.ticketManager,
-        functionName: 'transferFrom',
+        functionName: "transferFrom",
         args: [address, to as `0x${string}`, BigInt(tokenId)],
       });
     } catch (e: any) {
       const mapped = mapError(e);
-      if (tempRef.current) markFailed(hashRef.current as any, mapped.rawMessage);
-      push({ type: 'error', title: '转让失败', description: mapped.message });
+      if (tempRef.current)
+        markFailed(hashRef.current as any, mapped.rawMessage);
+      push({ type: "error", title: "转让失败", description: mapped.message });
       throw e;
     }
   };
@@ -374,8 +495,11 @@ export function useTransferTicket() {
 
   React.useEffect(() => {
     if (isSuccess) {
-      queryClient.invalidateQueries({ queryKey: ['events'] });
-      if (targetEventRef.current) queryClient.invalidateQueries({ queryKey: ['event', targetEventRef.current] });
+      queryClient.invalidateQueries({ queryKey: ["events"] });
+      if (targetEventRef.current)
+        queryClient.invalidateQueries({
+          queryKey: ["event", targetEventRef.current],
+        });
     }
   }, [isSuccess, queryClient]);
 
