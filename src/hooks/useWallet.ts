@@ -1,7 +1,14 @@
-import { useEffect, useCallback } from 'react';
-import { useAccount, useConnect, useDisconnect, useBalance, useEnsName, useEnsAvatar } from 'wagmi';
-import { useConnectModal } from '@rainbow-me/rainbowkit';
-import type { Address } from 'viem';
+import { useEffect, useCallback } from "react";
+import {
+  useAccount,
+  useConnect,
+  useDisconnect,
+  useBalance,
+  useEnsName,
+  useEnsAvatar,
+} from "wagmi";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
+import type { Address } from "viem";
 
 // 钱包连接状态类型
 export interface WalletState {
@@ -55,13 +62,9 @@ export interface UseWalletReturn extends WalletState, WalletActions {}
  */
 export function useWallet(): UseWalletReturn {
   // 账户相关 hooks
-  const {
-    address,
-    isConnected,
-    isConnecting,
-    isReconnecting,
-    chain
-  } = useAccount();
+  const { address, isConnected, isConnecting, isReconnecting, chain } =
+    useAccount();
+  const supportsEns = chain?.id === 1 || chain?.id === 11155111; // 仅在主网/ Sepolia 启用 ENS
 
   // 连接和断开连接
   const { error: connectError } = useConnect();
@@ -71,17 +74,22 @@ export function useWallet(): UseWalletReturn {
   // ENS 信息
   const { data: ensName } = useEnsName({
     address,
-  });
+    chainId: supportsEns ? chain?.id : undefined,
+    // 在不支持 ENS 的链（比如 anvil 31337）禁用查询，避免报错
+    query: { enabled: !!address && supportsEns },
+  } as any);
 
   const { data: ensAvatar } = useEnsAvatar({
     name: ensName || undefined,
-  });
+    chainId: supportsEns ? chain?.id : undefined,
+    query: { enabled: !!ensName && supportsEns },
+  } as any);
 
   // 余额信息
   const {
     data: balanceData,
     error: balanceError,
-    refetch: refetchBalance
+    refetch: refetchBalance,
   } = useBalance({
     address,
   });
@@ -113,14 +121,14 @@ export function useWallet(): UseWalletReturn {
   // 监听账户变化
   useEffect(() => {
     if (address && isConnected) {
-      console.log('Wallet connected:', address);
+      console.log("Wallet connected:", address);
     }
   }, [address, isConnected]);
 
   // 监听链变化
   useEffect(() => {
     if (chain) {
-      console.log('Chain changed:', chain.name, chain.id);
+      console.log("Chain changed:", chain.name, chain.id);
     }
   }, [chain]);
 
@@ -137,15 +145,17 @@ export function useWallet(): UseWalletReturn {
     ensAvatar: ensAvatar || undefined,
     balance: formatBalance(),
     chainId: chain?.id,
-    chain: chain ? {
-      id: chain.id,
-      name: chain.name,
-      nativeCurrency: {
-        name: chain.nativeCurrency.name,
-        symbol: chain.nativeCurrency.symbol,
-        decimals: chain.nativeCurrency.decimals,
-      },
-    } : undefined,
+    chain: chain
+      ? {
+          id: chain.id,
+          name: chain.name,
+          nativeCurrency: {
+            name: chain.nativeCurrency.name,
+            symbol: chain.nativeCurrency.symbol,
+            decimals: chain.nativeCurrency.decimals,
+          },
+        }
+      : undefined,
     error: error || undefined,
 
     // 操作
@@ -179,12 +189,19 @@ export function useWalletChain() {
 // 检查是否为指定地址的 hook
 export function useIsAddress(targetAddress?: Address): boolean {
   const { address } = useWallet();
-  return !!(address && targetAddress && address.toLowerCase() === targetAddress.toLowerCase());
+  return !!(
+    address &&
+    targetAddress &&
+    address.toLowerCase() === targetAddress.toLowerCase()
+  );
 }
 
 // 格式化地址显示
-export function useFormattedAddress(address?: Address, length: number = 6): string {
-  if (!address) return '';
+export function useFormattedAddress(
+  address?: Address,
+  length: number = 6
+): string {
+  if (!address) return "";
 
   if (address.length <= length * 2) return address;
 
