@@ -38,6 +38,7 @@ export const API_ENDPOINTS = {
   TICKETS: '/api/tickets',
   MARKETPLACE: '/api/marketplace',
   TOKEN_SWAP: '/api/token-swap',
+  SHOWS: '/show',
 } as const;
 
 // 应用配置
