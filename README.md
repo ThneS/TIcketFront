@@ -25,7 +25,96 @@
 | VITE_MARKETPLACE    | Marketplace 合约地址                                              |
 | VITE_PLATFORM_TOKEN | 平台 Token 地址                                                   |
 | VITE_TOKEN_SWAP     | TokenSwap 合约地址                                                |
+| VITE_API_BASE_URL   | 后端API基础URL (e.g. http://localhost:3001)                       |
 | VITE_CONTRACTS_JSON | 多网络 JSON 映射 (e.g. {"11155111": {"EVENT_MANAGER": "0x..."}} ) |
+
+## API 集成
+
+### Shows API
+
+项目集成了 `/show` 后端接口，支持获取演出信息的前端调用。
+
+#### 使用示例
+
+```typescript
+import { useShows, useShow, usePaginatedShows } from '@/hooks/useShows';
+
+// 获取演出列表
+function ShowsList() {
+  const { data: shows, loading, error, reload } = useShows();
+  
+  if (loading) return <div>加载中...</div>;
+  if (error) return <div>错误: {error.message}</div>;
+  
+  return (
+    <div>
+      {shows.map(show => (
+        <div key={show.id}>{show.name}</div>
+      ))}
+    </div>
+  );
+}
+
+// 获取单个演出
+function ShowDetail({ id }: { id: string }) {
+  const { data: show, loading, error } = useShow(id);
+  
+  if (loading) return <div>加载中...</div>;
+  if (error) return <div>错误: {error.message}</div>;
+  if (!show) return <div>演出不存在</div>;
+  
+  return <div>{show.name}: {show.description}</div>;
+}
+
+// 分页演出列表
+function PaginatedShows() {
+  const { 
+    data: shows, 
+    pagination, 
+    loading, 
+    params, 
+    goToPage, 
+    changePageSize 
+  } = usePaginatedShows({ page: 1, pageSize: 10 });
+  
+  return (
+    <div>
+      {shows.map(show => <div key={show.id}>{show.name}</div>)}
+      <button onClick={() => goToPage(params.page + 1)}>
+        下一页
+      </button>
+    </div>
+  );
+}
+```
+
+#### API 函数
+
+```typescript
+import { fetchShows, fetchShow } from '@/api/show';
+
+// 直接调用API（不使用hooks）
+const shows = await fetchShows({ page: 1, pageSize: 20 });
+const show = await fetchShow('123');
+```
+
+#### 类型定义
+
+```typescript
+interface Show {
+  id: string;
+  name: string;
+  description?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  [key: string]: any; // 兼容后端扩展字段
+}
+
+interface ShowListParams {
+  page?: number;
+  pageSize?: number;
+}
+```
 
 ## 快速开始
 
