@@ -1,13 +1,13 @@
 // Placeholder types & hooks for marketplace orders
-import { useQuery } from '@tanstack/react-query';
+import { useQuery } from "@tanstack/react-query";
 
 export interface Order {
   id: string;
   ticketId: string;
-  eventId: string;
+  showId: string; // 原 eventId
   seller: string;
   price: string; // ETH string
-  status: 'open' | 'filled' | 'cancelled';
+  status: "open" | "filled" | "cancelled";
   createdAt: number;
 }
 
@@ -15,12 +15,12 @@ export interface Order {
 async function fetchOrders(): Promise<Order[]> {
   return [
     {
-      id: '1',
-      ticketId: '12',
-      eventId: '1',
-      seller: '0x1234...abcd',
-      price: '0.15',
-      status: 'open',
+      id: "1",
+      ticketId: "12",
+      showId: "1",
+      seller: "0x1234...abcd",
+      price: "0.15",
+      status: "open",
       createdAt: Date.now() - 3600_000,
     },
   ];
@@ -28,7 +28,7 @@ async function fetchOrders(): Promise<Order[]> {
 
 export function useOrders() {
   return useQuery({
-    queryKey: ['orders'],
+    queryKey: ["orders"],
     queryFn: fetchOrders,
     staleTime: 10_000,
   });

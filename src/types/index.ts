@@ -1,4 +1,4 @@
-import type { Address } from 'viem';
+import type { Address } from "viem";
 
 // 基础类型
 export interface BaseEntity {
@@ -13,12 +13,12 @@ export interface User {
   ensName?: string;
   avatar?: string;
   isOrganizer: boolean;
-  createdEvents: string[];
+  createdShows: string[]; // 用户创建的演出 ID 列表
   ownedTickets: string[];
 }
 
-// 活动类型
-export interface Event extends BaseEntity {
+// 演出类型 (原 Event)
+export interface Show extends BaseEntity {
   name: string;
   description: string;
   imageUrl: string;
@@ -45,10 +45,10 @@ export interface TicketType {
   saleEndTime: Date;
 }
 
-// 门票 NFT
+// 门票 NFT (与演出关联的链上门票)
 export interface Ticket extends BaseEntity {
   tokenId: string;
-  eventId: string;
+  showId: string; // 所属演出 ID (原 eventId)
   owner: Address;
   ticketType: TicketType;
   isUsed: boolean;
@@ -57,7 +57,7 @@ export interface Ticket extends BaseEntity {
   price: bigint;
 }
 
-// 市场订单
+// 市场订单 (门票二级市场挂牌)
 export interface MarketOrder extends BaseEntity {
   orderId: string;
   tokenId: string;
@@ -68,17 +68,17 @@ export interface MarketOrder extends BaseEntity {
   updatedAt: Date;
 }
 
-// 交易历史
+// 交易历史 (与门票/演出相关的链上交易)
 export interface Transaction extends BaseEntity {
   hash: string;
   from: Address;
   to: Address;
   tokenId?: string;
   amount: bigint;
-  type: 'mint' | 'transfer' | 'sale' | 'swap';
+  type: "mint" | "transfer" | "sale" | "swap";
   gasUsed: bigint;
   gasPrice: bigint;
-  status: 'pending' | 'confirmed' | 'failed';
+  status: "pending" | "confirmed" | "failed";
 }
 
 // 代币余额
@@ -129,18 +129,18 @@ export interface PaginatedResponse<T> extends ApiResponse<T[]> {
 }
 
 // 表单类型
-export interface CreateEventForm {
+export interface CreateShowForm {
   name: string;
   description: string;
   imageUrl: string;
   venue: string;
   startTime: Date;
   endTime: Date;
-  ticketTypes: Omit<TicketType, 'id' | 'currentSupply'>[];
+  ticketTypes: Omit<TicketType, "id" | "currentSupply">[];
 }
 
 export interface BuyTicketForm {
-  eventId: string;
+  showId: string; // 原 eventId 重命名
   ticketTypeId: string;
   quantity: number;
 }
@@ -168,8 +168,8 @@ export interface WalletState {
 
 // 应用状态
 export interface AppState {
-  theme: 'light' | 'dark';
-  language: 'zh-CN' | 'en-US';
+  theme: "light" | "dark";
+  language: "zh-CN" | "en-US";
   wallet: WalletState;
   loading: boolean;
   error?: string;

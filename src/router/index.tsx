@@ -1,9 +1,9 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { Layout } from "../layout";
 import { Home } from "../pages/Home";
-import { Events } from "../pages/Events";
+import { Shows } from "../pages/Shows";
 import {
-  EventDetail,
+  ShowDetail,
   MyTickets,
   Marketplace,
   TokenSwap,
@@ -23,12 +23,12 @@ export const router = createBrowserRouter([
         element: <Home />,
       },
       {
-        path: "events",
-        element: <Events />,
+        path: "shows",
+        element: <Shows />,
       },
       {
-        path: "events/:id",
-        element: <EventDetail />,
+        path: "shows/:id",
+        element: <ShowDetail />,
       },
       {
         path: "my-tickets",
@@ -55,7 +55,7 @@ export const router = createBrowserRouter([
         element: <Profile />,
       },
       {
-        path: "create-event",
+        path: "create-show",
         element: <CreateShow />,
       },
       {
@@ -74,8 +74,8 @@ export const routes = [
     icon: "Home",
   },
   {
-    path: "/events",
-    name: "活动",
+    path: "/shows",
+    name: "演出",
     icon: "Calendar",
   },
   {

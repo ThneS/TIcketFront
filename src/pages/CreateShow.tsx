@@ -7,6 +7,7 @@ import {
 } from "../schemas/event";
 import { useCreateShow } from "../hooks/useContracts";
 import { useEffect } from "react";
+import { useWallet } from "../hooks/useWallet";
 import { useNavigate } from "react-router-dom";
 
 /**
@@ -17,8 +18,9 @@ import { useNavigate } from "react-router-dom";
  *  - 成功/失败 Toast & 重置
  */
 export function CreateShow() {
-  const { createShow, isPending, isConfirming, isSuccess, error, newEventId } =
+  const { createShow, isPending, isConfirming, isSuccess, error, newShowId } =
     useCreateShow();
+  const { isConnected, connect } = useWallet();
   const navigate = useNavigate();
   const form = useForm<CreateShowInput>({
     resolver: zodResolver(createShowSchema),
@@ -41,10 +43,21 @@ export function CreateShow() {
       form.setError("endTime", { message: chronologyError });
       return;
     }
+    if (!isConnected) {
+      // 未连接钱包时提示并尝试唤起连接
+      alert("请先连接钱包再创建演出");
+      try {
+        await connect?.();
+      } catch (_) {
+        /* 忽略 */
+      }
+      return;
+    }
     try {
       await createShow(values);
-    } catch (e) {
-      // 交由全局日志处理
+    } catch (e: any) {
+      // 显式反馈而不是静默
+      alert(e?.message || "创建失败");
     }
   };
 
@@ -56,18 +69,23 @@ export function CreateShow() {
 
   // 成功解析到新 eventId 后跳转
   useEffect(() => {
-    if (isSuccess && newEventId != null) {
-      navigate(`/events/${newEventId.toString()}`);
+    if (isSuccess && newShowId != null) {
+      navigate(`/shows/${newShowId.toString()}`);
     }
-  }, [isSuccess, newEventId, navigate]);
+  }, [isSuccess, newShowId, navigate]);
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6">创建活动</h1>
+      <h1 className="text-3xl font-bold mb-6">创建演出</h1>
+      {!isConnected && (
+        <div className="mb-6 bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded">
+          尚未连接钱包，提交时会提示连接。
+        </div>
+      )}
       <form
         onSubmit={form.handleSubmit(onSubmit, (errors) => {
           // 快速定位表单未通过校验导致 onSubmit 未触发的情况
-          console.warn("createEvent invalid form", errors);
+          console.warn("createShow invalid form", errors);
         })}
         className="space-y-6 max-w-2xl"
       >
@@ -209,8 +227,8 @@ export function CreateShow() {
           >
             {isPending && "等待钱包确认..."}
             {isConfirming && "链上确认中..."}
-            {isSuccess && newEventId && "创建成功，跳转中..."}
-            {!isPending && !isConfirming && !isSuccess && "创建活动"}
+            {isSuccess && newShowId && "创建成功，跳转中..."}
+            {!isPending && !isConfirming && !isSuccess && "创建演出"}
           </button>
           {error && (
             <span className="text-sm text-red-600">{error.message}</span>

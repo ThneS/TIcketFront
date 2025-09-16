@@ -15,8 +15,8 @@ import { useTxQueue } from "../lib/txQueue";
 import { mapError } from "../lib/errors";
 import { startSpan, endSpan, logError } from "../lib/observability";
 
-// Event 数据类型
-export interface Event {
+// Show 数据类型（由原 Event 重命名）。
+export interface Show {
   id: bigint;
   name: string;
   description: string;
@@ -29,9 +29,10 @@ export interface Event {
   organizer: string;
   isActive: boolean;
 }
+// 兼容的旧 Event 类型与别名已移除
 
-// Hook: 获取所有活动
-export function useGetAllEvents() {
+// Hook: 获取所有演出/活动列表（原 useGetAllEvents）
+export function useGetAllShows() {
   const { chain } = useAccount();
   const publicClient = usePublicClient();
   const eventManagerAddress = getAddress("eventManager", chain?.id);
@@ -48,7 +49,7 @@ export function useGetAllEvents() {
   });
   const eventIds = eventIdsRaw as readonly bigint[] | undefined;
 
-  const [events, setEvents] = useState<Event[]>([]);
+  const [shows, setShows] = useState<Show[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
   const [batchError, setBatchError] = useState<Error | undefined>(undefined);
 
@@ -61,7 +62,7 @@ export function useGetAllEvents() {
         !eventIds ||
         eventIds.length === 0
       ) {
-        setEvents([]);
+        setShows([]);
         return;
       }
       setEventsLoading(true);
@@ -78,42 +79,51 @@ export function useGetAllEvents() {
           contracts,
           allowFailure: true,
         });
-        const results = multiRes.map((res, idx) => {
-          const id = eventIds[idx] as bigint;
-          if (res.status === "success") {
-            const data: any = res.result;
+        // 为避免隐式 any，明确 multiRes 每项与索引类型
+        const results = multiRes.map(
+          (res: (typeof multiRes)[number], idx: number): Show => {
+            const id = eventIds[idx] as bigint;
+            if (res.status === "success") {
+              const data: any = res.result;
+              return {
+                id: data[0] as bigint,
+                name: data[1] as string,
+                description: data[2] as string,
+                location: data[3] as string,
+                startTime: new Date(Number(data[4]) * 1000),
+                endTime: new Date(Number(data[5]) * 1000),
+                ticketPrice: data[6] as bigint,
+                maxTickets: data[7] as bigint,
+                soldTickets: data[8] as bigint,
+                organizer: data[9] as string,
+                isActive: data[10] as boolean,
+              } satisfies Show;
+            }
+            const e: any = (res as any).error;
             return {
-              id: data[0] as bigint,
-              name: data[1] as string,
-              description: data[2] as string,
-              location: data[3] as string,
-              startTime: new Date(Number(data[4]) * 1000),
-              endTime: new Date(Number(data[5]) * 1000),
-              ticketPrice: data[6] as bigint,
-              maxTickets: data[7] as bigint,
-              soldTickets: data[8] as bigint,
-              organizer: data[9] as string,
-              isActive: data[10] as boolean,
-            } satisfies Event;
+              id,
+              name: "加载失败",
+              description: e?.shortMessage || e?.message || "无法获取活动详情",
+              location: "-",
+              startTime: new Date(0),
+              endTime: new Date(0),
+              ticketPrice: BigInt(0),
+              maxTickets: BigInt(0),
+              soldTickets: BigInt(0),
+              organizer: "0x0000000000000000000000000000000000000000",
+              isActive: false,
+            } satisfies Show;
           }
-          const e: any = res.error;
-          return {
-            id,
-            name: "加载失败",
-            description: e?.shortMessage || e?.message || "无法获取活动详情",
-            location: "-",
-            startTime: new Date(0),
-            endTime: new Date(0),
-            ticketPrice: BigInt(0),
-            maxTickets: BigInt(0),
-            soldTickets: BigInt(0),
-            organizer: "0x0000000000000000000000000000000000000000",
-            isActive: false,
-          } satisfies Event;
-        });
+        );
         if (!cancelled) {
-          // 按 id 排序，保证稳定
-          setEvents(results.sort((a, b) => (a.id < b.id ? -1 : 1)));
+          // 按 id 排序，保证稳定；修复原比较未处理相等情况导致的非稳定排序伪命题
+          setShows(
+            results
+              .slice()
+              .sort((a: Show, b: Show): number =>
+                a.id === b.id ? 0 : a.id < b.id ? -1 : 1
+              )
+          );
         }
       } catch (e: any) {
         if (!cancelled) setBatchError(e);
@@ -128,15 +138,15 @@ export function useGetAllEvents() {
   }, [eventIds, eventManagerAddress, publicClient]);
 
   return {
-    events,
+    shows,
     isLoading: isLoading || eventsLoading,
     error: error || batchError,
     refetch,
   };
 }
 
-// Hook: 获取单个活动
-export function useGetEvent(eventId: string | undefined) {
+// Hook: 获取单个演出/活动详情（原 useGetEvent）
+export function useGetShow(eventId: string | undefined) {
   const { chain } = useAccount();
   const eventManagerAddress = getAddress("eventManager", chain?.id);
   type EventTuple = [
@@ -166,7 +176,7 @@ export function useGetEvent(eventId: string | undefined) {
   });
   const eventData = eventDataRaw as unknown as EventTuple | undefined;
 
-  const event: Event | undefined = eventData
+  const show: Show | undefined = eventData
     ? {
         id: eventData[0],
         name: eventData[1],
@@ -182,7 +192,7 @@ export function useGetEvent(eventId: string | undefined) {
       }
     : undefined;
 
-  return { event, isLoading, error, refetch };
+  return { show, isLoading, error, refetch };
 }
 
 // Hook: 创建活动
@@ -197,7 +207,7 @@ export function useCreateShow() {
     isLoading: isConfirming,
     isSuccess,
   } = useWaitForTransactionReceipt({ hash });
-  const [newEventId, setNewEventId] = React.useState<bigint | null>(null);
+  const [newShowId, setNewShowId] = React.useState<bigint | null>(null);
   const {
     trackWalletAction,
     markSent,
@@ -291,7 +301,7 @@ export function useCreateShow() {
   // 解析链上日志获取新创建的 showId
   React.useEffect(() => {
     if (!isSuccess || !receipt || !showManagerAddress) return;
-    if (newEventId) return; // 已解析
+    if (newShowId) return; // 已解析
     try {
       for (const log of receipt.logs || []) {
         try {
@@ -307,7 +317,7 @@ export function useCreateShow() {
             // parsed.args 可能是具名或位置数组
             const args: any = parsed.args as any;
             const id: bigint | undefined = args?.showId ?? args?.[0];
-            if (typeof id === "bigint") setNewEventId(id);
+            if (typeof id === "bigint") setNewShowId(id);
             break;
           }
         } catch (_) {
@@ -317,23 +327,24 @@ export function useCreateShow() {
     } catch (e) {
       // 解析失败不阻断主流程
     }
-  }, [isSuccess, receipt, showManagerAddress, newEventId]);
+  }, [isSuccess, receipt, showManagerAddress, newShowId]);
 
   // 交易生命周期结束后释放提交锁
   React.useEffect(() => {
     if (!isPending && !isConfirming) submittingRef.current = false;
   }, [isPending, isConfirming]);
 
-  // 成功后失效事件列表查询
+  // 成功后失效演出列表查询
   React.useEffect(() => {
     if (isSuccess) {
-      queryClient.invalidateQueries({ queryKey: ["events"] });
-      if (newEventId)
+      queryClient.invalidateQueries({ queryKey: ["shows"] });
+      if (newShowId) {
         queryClient.invalidateQueries({
-          queryKey: ["event", newEventId.toString()],
+          queryKey: ["show", newShowId.toString()],
         });
+      }
     }
-  }, [isSuccess, newEventId, queryClient]);
+  }, [isSuccess, newShowId, queryClient]);
 
   return {
     createShow,
@@ -342,7 +353,7 @@ export function useCreateShow() {
     isConfirming,
     isSuccess,
     error,
-    newEventId,
+    newShowId,
   };
 }
 
@@ -366,7 +377,7 @@ export function useMintTicket() {
   const tempRef = React.useRef<string | null>(null);
   const hashRef = React.useRef<`0x${string}` | undefined>(undefined);
   const queryClient = useQueryClient();
-  const targetEventRef = React.useRef<string | null>(null);
+  const targetShowRef = React.useRef<string | null>(null);
 
   const mintTicket = async (
     eventId: string,
@@ -379,7 +390,7 @@ export function useMintTicket() {
     const totalPrice = ticketPrice * BigInt(quantity);
 
     try {
-      targetEventRef.current = eventId;
+      targetShowRef.current = eventId;
       const tempId = trackWalletAction({
         title: "购票",
         description: `活动 #${eventId} x${quantity}`,
@@ -419,11 +430,12 @@ export function useMintTicket() {
 
   React.useEffect(() => {
     if (isSuccess) {
-      queryClient.invalidateQueries({ queryKey: ["events"] });
-      if (targetEventRef.current)
+      queryClient.invalidateQueries({ queryKey: ["shows"] });
+      if (targetShowRef.current) {
         queryClient.invalidateQueries({
-          queryKey: ["event", targetEventRef.current],
+          queryKey: ["show", targetShowRef.current],
         });
+      }
     }
   }, [isSuccess, queryClient]);
 
@@ -450,7 +462,7 @@ export function useTransferTicket() {
   const tempRef = React.useRef<string | null>(null);
   const hashRef = React.useRef<`0x${string}` | undefined>(undefined);
   const queryClient = useQueryClient();
-  const targetEventRef = React.useRef<string | null>(null); // 若未来需要由 tokenId 推断 event
+  const targetShowRef = React.useRef<string | null>(null); // 若未来需要由 tokenId 推断 show
 
   const transferTicket = async (to: string, tokenId: string) => {
     if (!address) throw new Error("请先连接钱包");
@@ -495,13 +507,16 @@ export function useTransferTicket() {
 
   React.useEffect(() => {
     if (isSuccess) {
-      queryClient.invalidateQueries({ queryKey: ["events"] });
-      if (targetEventRef.current)
+      queryClient.invalidateQueries({ queryKey: ["shows"] });
+      if (targetShowRef.current) {
         queryClient.invalidateQueries({
-          queryKey: ["event", targetEventRef.current],
+          queryKey: ["show", targetShowRef.current],
         });
+      }
     }
   }, [isSuccess, queryClient]);
 
   return { transferTicket, hash, isPending, isConfirming, isSuccess, error };
 }
+
+// (旧别名 useGetAllEvents / useGetEvent 已移除)

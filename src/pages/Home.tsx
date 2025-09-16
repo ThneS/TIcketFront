@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link } from "react-router-dom";
 
 export function Home() {
   return (
@@ -11,16 +11,16 @@ export function Home() {
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
           <Link
-            to="/events"
+            to="/shows"
             className="bg-primary text-primary-foreground hover:bg-primary/90 px-6 py-3 rounded-lg font-medium transition-colors"
           >
-            浏览活动
+            浏览演出
           </Link>
           <Link
-            to="/create-event"
+            to="/create-show"
             className="bg-secondary text-secondary-foreground hover:bg-secondary/80 px-6 py-3 rounded-lg font-medium transition-colors"
           >
-            创建活动
+            创建演出
           </Link>
         </div>
 
@@ -36,20 +36,16 @@ export function Home() {
           <div className="p-6 rounded-lg border">
             <div className="text-3xl mb-4">🔄</div>
             <h3 className="text-lg font-semibold mb-2">二级市场</h3>
-            <p className="text-muted-foreground">
-              支持门票安全转让与交易
-            </p>
+            <p className="text-muted-foreground">支持门票安全转让与交易</p>
           </div>
 
           <div className="p-6 rounded-lg border">
             <div className="text-3xl mb-4">💰</div>
             <h3 className="text-lg font-semibold mb-2">代币经济</h3>
-            <p className="text-muted-foreground">
-              平台代币支付，享受更多优惠
-            </p>
+            <p className="text-muted-foreground">平台代币支付，享受更多优惠</p>
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }

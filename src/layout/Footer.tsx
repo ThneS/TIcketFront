@@ -13,27 +13,63 @@ export function Footer() {
           <div>
             <h4 className="text-sm font-semibold mb-3">产品</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><a href="/events" className="hover:text-primary">活动</a></li>
-              <li><a href="/marketplace" className="hover:text-primary">市场</a></li>
-              <li><a href="/swap" className="hover:text-primary">代币交换</a></li>
+              <li>
+                <a href="/shows" className="hover:text-primary">
+                  演出
+                </a>
+              </li>
+              <li>
+                <a href="/marketplace" className="hover:text-primary">
+                  市场
+                </a>
+              </li>
+              <li>
+                <a href="/swap" className="hover:text-primary">
+                  代币交换
+                </a>
+              </li>
             </ul>
           </div>
 
           <div>
             <h4 className="text-sm font-semibold mb-3">开发者</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><a href="#" className="hover:text-primary">文档</a></li>
-              <li><a href="#" className="hover:text-primary">API</a></li>
-              <li><a href="#" className="hover:text-primary">GitHub</a></li>
+              <li>
+                <a href="#" className="hover:text-primary">
+                  文档
+                </a>
+              </li>
+              <li>
+                <a href="#" className="hover:text-primary">
+                  API
+                </a>
+              </li>
+              <li>
+                <a href="#" className="hover:text-primary">
+                  GitHub
+                </a>
+              </li>
             </ul>
           </div>
 
           <div>
             <h4 className="text-sm font-semibold mb-3">社区</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><a href="#" className="hover:text-primary">Discord</a></li>
-              <li><a href="#" className="hover:text-primary">Twitter</a></li>
-              <li><a href="#" className="hover:text-primary">Telegram</a></li>
+              <li>
+                <a href="#" className="hover:text-primary">
+                  Discord
+                </a>
+              </li>
+              <li>
+                <a href="#" className="hover:text-primary">
+                  Twitter
+                </a>
+              </li>
+              <li>
+                <a href="#" className="hover:text-primary">
+                  Telegram
+                </a>
+              </li>
             </ul>
           </div>
         </div>

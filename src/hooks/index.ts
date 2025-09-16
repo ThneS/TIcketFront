@@ -9,14 +9,15 @@ export {
   useDisplayName,
   type WalletState,
   type WalletActions,
-  type UseWalletReturn
-} from './useWallet';
+  type UseWalletReturn,
+} from "./useWallet";
 
+// Shows (formerly Events) hooks
 export {
-  useGetAllEvents,
-  useGetEvent,
-  useCreateEvent,
+  useGetAllShows,
+  useGetShow,
+  useCreateShow,
   useMintTicket,
   useTransferTicket,
-  type Event
-} from './useContracts';
+  type Show,
+} from "./useContracts";

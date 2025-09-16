@@ -1,5 +1,5 @@
 // 重新导出真实的页面组件
-export { EventDetail } from "./EventDetail";
+export { ShowDetail } from "./ShowDetail";
 export { MyTickets } from "./MyTickets";
 
 export { CreateShow } from "./CreateShow";
