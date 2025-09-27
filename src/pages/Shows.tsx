@@ -181,8 +181,8 @@ export function Shows() {
           const statusInfo = getStatus(
             (data as any).status ?? (data.isActive ? 1 : 0)
           );
-          const metaTitle = (data as any).metadata?.title;
-          const displayName = metaTitle || data.name;
+          // 按需求：列表标题只使用链上 name，不再使用 metadata 覆盖
+          const displayName = data.name;
           return (
             <div
               key={data.id || index}
@@ -232,14 +232,7 @@ export function Shows() {
                       已售 {Number(data.soldTickets)} /{" "}
                       {Number(data.maxTickets)} 张
                     </span>
-                    {metaTitle && (
-                      <span
-                        className="text-xs text-blue-500 truncate max-w-[120px]"
-                        title={metaTitle}
-                      >
-                        {metaTitle}
-                      </span>
-                    )}
+                    {/* 之前这里会显示 metadata title，现已移除以保持与链上名称一致 */}
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div
