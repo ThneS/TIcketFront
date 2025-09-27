@@ -1,6 +1,8 @@
 import { useParams, useNavigate } from "react-router-dom";
+// import { buildIpfsHttpUrl } from "../lib/ipfs.ts"; // 现阶段核心信息仅使用链上 getShow 数据，元数据统一放入附加属性
 import { useState, useEffect } from "react";
 import { useGetShow, useMintTicket } from "../hooks/useContracts";
+import { useIpfsJson } from "../hooks/useIpfsJson";
 import { useWallet } from "../hooks/useWallet";
 import { formatEther } from "viem";
 
@@ -16,6 +18,16 @@ export function ShowDetail() {
     isLoading: eventLoading,
     error: eventError,
   } = useGetShow(id || undefined);
+
+  // 解析 metadata（若存在 metadataURI）
+  const {
+    data: metadata,
+    isLoading: metaLoading,
+    error: metaError,
+  } = useIpfsJson(show?.metadataURI, {
+    enabled: !!show?.metadataURI,
+    maxAgeMs: 10 * 60 * 1000,
+  });
 
   // 购买门票相关
   const {
@@ -42,11 +54,8 @@ export function ShowDetail() {
     }
 
     try {
-      await mintTicket(
-        id!,
-        ticketCount,
-        BigInt(show.ticketPrice) * BigInt(ticketCount)
-      );
+      // 传入单张票价，内部 hook 会乘以数量
+      await mintTicket(id!, ticketCount, BigInt(show.ticketPrice));
     } catch (error) {
       console.error("购买门票失败:", error);
     }
@@ -81,8 +90,13 @@ export function ShowDetail() {
     );
   }
 
-  const eventDate = new Date(show.startTime);
-  const ticketPrice = formatEther(show.ticketPrice);
+  const eventDate =
+    show.startTime instanceof Date
+      ? show.startTime
+      : new Date(show.startTime as any);
+  const ticketPrice = show.ticketPrice
+    ? formatEther(show.ticketPrice as any)
+    : "0";
   const soldTickets = Number(show.soldTickets);
   const maxTickets = Number(show.maxTickets);
   const isEventActive = show.isActive;
@@ -110,10 +124,20 @@ export function ShowDetail() {
         {/* 演出信息和购票区域 */}
         <div className="space-y-6">
           <div>
-            <h1 className="text-3xl font-bold mb-4">{show.name}</h1>
+            <h1 className="text-3xl font-bold mb-2">{show.name}</h1>
             <p className="text-muted-foreground text-lg leading-relaxed">
               {show.description}
             </p>
+            {metaLoading && (
+              <p className="text-xs text-muted-foreground mt-2">
+                正在加载链下元数据...
+              </p>
+            )}
+            {metaError && (
+              <p className="text-xs text-red-600 mt-2">
+                元数据加载失败: {metaError.message}
+              </p>
+            )}
           </div>
 
           {/* 演出详细信息 */}
@@ -161,6 +185,7 @@ export function ShowDetail() {
                 </p>
               </div>
             </div>
+            {/* 不再在核心信息区展示 metadata.external_url，统一放到附加属性 */}
           </div>
 
           {/* 购票区域 */}
@@ -254,9 +279,78 @@ export function ShowDetail() {
           {/* 演出组织者信息 */}
           <div className="border rounded-lg p-4">
             <h3 className="font-semibold mb-2">演出组织者</h3>
-            <p className="text-sm text-muted-foreground font-mono">
+            <p className="text-sm text-muted-foreground font-mono break-all">
               {show.organizer}
             </p>
+            {metadata && (
+              <div className="mt-4 space-y-2">
+                <p className="text-sm font-semibold">
+                  附加属性 (来自 metadataURI):
+                </p>
+                <div className="space-y-1">
+                  {(() => {
+                    const rows: { label: string; value: any }[] = [];
+                    try {
+                      const entries = Object.entries(metadata as any);
+                      for (const [k, v] of entries) {
+                        if (k === "attributes" && Array.isArray(v)) continue; // 单独处理
+                        rows.push({ label: k, value: v });
+                      }
+                      if (Array.isArray((metadata as any).attributes)) {
+                        for (const attr of (metadata as any).attributes) {
+                          const label = attr?.trait_type || attr?.key || "attr";
+                          rows.push({ label, value: attr?.value });
+                        }
+                      }
+                      // 如果有 image / external_url，改为链接展示
+                      return rows.map((r, i) => {
+                        let val: any = r.value;
+                        if (typeof val === "object" && val !== null) {
+                          try {
+                            val = JSON.stringify(val);
+                          } catch {
+                            val = String(val);
+                          }
+                        }
+                        const isUrl =
+                          typeof val === "string" &&
+                          /^(ipfs:\/\/|https?:\/\/)/i.test(val);
+                        return (
+                          <div
+                            key={i}
+                            className="text-xs text-muted-foreground flex gap-2 break-all"
+                          >
+                            <span className="font-medium">{r.label}:</span>
+                            {isUrl ? (
+                              <a
+                                href={val.startsWith("ipfs://") ? val : val}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-blue-600 underline decoration-dotted"
+                              >
+                                {val}
+                              </a>
+                            ) : (
+                              <span>
+                                {val === undefined || val === null || val === ""
+                                  ? "-"
+                                  : String(val)}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      });
+                    } catch {
+                      return (
+                        <div className="text-xs text-red-500">
+                          无法解析元数据结构
+                        </div>
+                      );
+                    }
+                  })()}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

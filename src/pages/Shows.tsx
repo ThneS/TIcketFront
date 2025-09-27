@@ -1,6 +1,11 @@
+import {
+  useGetAllShows,
+  type Show,
+  useShowStatusLabel,
+  useEnrichShowsWithMetadata,
+} from "../hooks/useContracts";
 import { useNavigate } from "react-router-dom";
 import { WalletAwareButton } from "../components/auth/WalletAwareButton";
-import { useGetAllShows, type Show } from "../hooks/useContracts";
 import { formatEther } from "viem";
 import { formatDate } from "../lib/time";
 
@@ -20,6 +25,8 @@ interface MockShow {
 export function Shows() {
   const navigate = useNavigate();
   const { shows, isLoading, error } = useGetAllShows();
+  const enriched = useEnrichShowsWithMetadata(shows);
+  const { getStatus } = useShowStatusLabel();
 
   const mockShows: MockShow[] = [
     {
@@ -66,7 +73,7 @@ export function Shows() {
     },
   ];
 
-  const displayShows = shows && shows.length > 0 ? shows : mockShows;
+  const displayShows = enriched && enriched.length > 0 ? enriched : mockShows;
 
   interface ShowCardData {
     id: number;
@@ -79,6 +86,8 @@ export function Shows() {
     soldTickets: bigint;
     isActive: boolean;
     organizer: string;
+    status?: number;
+    metadata?: any;
   }
 
   const getShowData = (show: Show | MockShow): ShowCardData => {
@@ -109,6 +118,8 @@ export function Shows() {
       soldTickets: show.soldTickets,
       isActive: show.isActive,
       organizer: show.organizer,
+      status: show.status,
+      metadata: show.metadata,
     };
   };
 
@@ -167,7 +178,11 @@ export function Shows() {
           const ticketPrice = formatEther(data.ticketPrice);
           const soldPercentage =
             (Number(data.soldTickets) / Number(data.maxTickets)) * 100;
-
+          const statusInfo = getStatus(
+            (data as any).status ?? (data.isActive ? 1 : 0)
+          );
+          const metaTitle = (data as any).metadata?.title;
+          const displayName = metaTitle || data.name;
           return (
             <div
               key={data.id || index}
@@ -186,13 +201,20 @@ export function Shows() {
                 } flex items-center justify-center`}
               >
                 <div className="text-white text-center">
-                  <h3 className="text-xl font-bold mb-2">{data.name}</h3>
+                  <h3 className="text-xl font-bold mb-2">{displayName}</h3>
                   <p className="text-sm opacity-90">点击查看详情</p>
                 </div>
               </div>
 
               <div className="p-6">
-                <h3 className="text-xl font-semibold mb-2">{data.name}</h3>
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <h3 className="text-xl font-semibold">{displayName}</h3>
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${statusInfo.color}`}
+                  >
+                    {statusInfo.label}
+                  </span>
+                </div>
                 <p className="text-muted-foreground mb-4 line-clamp-2">
                   {data.description}
                 </p>
@@ -210,15 +232,14 @@ export function Shows() {
                       已售 {Number(data.soldTickets)} /{" "}
                       {Number(data.maxTickets)} 张
                     </span>
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs ${
-                        data.isActive
-                          ? "bg-green-100 text-green-800"
-                          : "bg-gray-100 text-gray-800"
-                      }`}
-                    >
-                      {data.isActive ? "售票中" : "已结束"}
-                    </span>
+                    {metaTitle && (
+                      <span
+                        className="text-xs text-blue-500 truncate max-w-[120px]"
+                        title={metaTitle}
+                      >
+                        {metaTitle}
+                      </span>
+                    )}
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div

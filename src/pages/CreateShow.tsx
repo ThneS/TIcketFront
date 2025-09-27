@@ -69,7 +69,7 @@ export function CreateShow() {
 
   // 成功解析到新 eventId 后跳转
   useEffect(() => {
-    if (isSuccess && newShowId != null) {
+    if (isSuccess && typeof newShowId === "bigint") {
       navigate(`/shows/${newShowId.toString()}`);
     }
   }, [isSuccess, newShowId, navigate]);
@@ -210,7 +210,7 @@ export function CreateShow() {
             type="text"
             {...form.register("ipfs_cid")}
             className="w-full border rounded px-3 py-2 focus:outline-none focus:ring"
-            placeholder="例如：bafy... 或 ipfs://..."
+            placeholder="例如：bafy... 或 Qm... 或 ipfs://bafy.../metadata.json"
           />
           {form.formState.errors.ipfs_cid && (
             <p className="text-sm text-red-600 mt-1">

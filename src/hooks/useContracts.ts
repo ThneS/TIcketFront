@@ -2,13 +2,13 @@ import {
   useReadContract,
   useWriteContract,
   useWaitForTransactionReceipt,
-  usePublicClient,
 } from "wagmi";
 import { useQueryClient } from "@tanstack/react-query";
 import { parseEther, decodeEventLog } from "viem";
-import React, { useState } from "react";
+import React from "react";
 import { useWallet } from "./useWallet";
 import { ABIS, getAddress } from "../abis";
+import { buildIpfsHttpUrl } from "../lib/ipfs.ts";
 import { useAccount } from "wagmi";
 import { useToast } from "../components/feedback/ToastProvider";
 import { useTxQueue } from "../lib/txQueue";
@@ -28,170 +28,164 @@ export interface Show {
   soldTickets: bigint;
   organizer: string;
   isActive: boolean;
+  status: ShowStatus;
+  metadataURI?: string;
+  metadata?: any; // 解析后的 IPFS 元数据（可选结构）
 }
-// 兼容的旧 Event 类型与别名已移除
 
-// Hook: 获取所有演出/活动列表（原 useGetAllEvents）
+export const ShowStatus = {
+  Upcoming: 0,
+  Active: 1,
+  Ended: 2,
+  Cancelled: 3,
+} as const;
+export type ShowStatus = (typeof ShowStatus)[keyof typeof ShowStatus];
+
+// Hook: 获取所有演出列表（改为直接调用 ShowManager.getShows）
 export function useGetAllShows() {
   const { chain } = useAccount();
-  const publicClient = usePublicClient();
-  const eventManagerAddress = getAddress("eventManager", chain?.id);
-  const {
-    data: eventIdsRaw,
-    isLoading,
-    error,
-    refetch,
-  } = useReadContract({
-    address: eventManagerAddress,
-    abi: ABIS.eventManager,
-    functionName: "getAllEvents",
-    query: { enabled: !!eventManagerAddress },
+  const showManagerAddress = getAddress("showManager", chain?.id);
+
+  const { data, isLoading, error, refetch } = useReadContract({
+    address: showManagerAddress,
+    abi: ABIS.showManager,
+    functionName: "getShows",
+    query: { enabled: !!showManagerAddress },
   });
-  const eventIds = eventIdsRaw as readonly bigint[] | undefined;
 
-  const [shows, setShows] = useState<Show[]>([]);
-  const [eventsLoading, setEventsLoading] = useState(false);
-  const [batchError, setBatchError] = useState<Error | undefined>(undefined);
-
-  React.useEffect(() => {
-    let cancelled = false;
-    async function loadDetails() {
-      if (
-        !publicClient ||
-        !eventManagerAddress ||
-        !eventIds ||
-        eventIds.length === 0
-      ) {
-        setShows([]);
-        return;
-      }
-      setEventsLoading(true);
-      setBatchError(undefined);
-      try {
-        // multicall 优化批量读取
-        const contracts = (eventIds as bigint[]).map((id) => ({
-          address: eventManagerAddress,
-          abi: ABIS.eventManager as any,
-          functionName: "getEvent" as const,
-          args: [id] as const,
-        }));
-        const multiRes = await publicClient.multicall({
-          contracts,
-          allowFailure: true,
-        });
-        // 为避免隐式 any，明确 multiRes 每项与索引类型
-        const results = multiRes.map(
-          (res: (typeof multiRes)[number], idx: number): Show => {
-            const id = eventIds[idx] as bigint;
-            if (res.status === "success") {
-              const data: any = res.result;
-              return {
-                id: data[0] as bigint,
-                name: data[1] as string,
-                description: data[2] as string,
-                location: data[3] as string,
-                startTime: new Date(Number(data[4]) * 1000),
-                endTime: new Date(Number(data[5]) * 1000),
-                ticketPrice: data[6] as bigint,
-                maxTickets: data[7] as bigint,
-                soldTickets: data[8] as bigint,
-                organizer: data[9] as string,
-                isActive: data[10] as boolean,
-              } satisfies Show;
-            }
-            const e: any = (res as any).error;
-            return {
-              id,
-              name: "加载失败",
-              description: e?.shortMessage || e?.message || "无法获取活动详情",
-              location: "-",
-              startTime: new Date(0),
-              endTime: new Date(0),
-              ticketPrice: BigInt(0),
-              maxTickets: BigInt(0),
-              soldTickets: BigInt(0),
-              organizer: "0x0000000000000000000000000000000000000000",
-              isActive: false,
-            } satisfies Show;
-          }
-        );
-        if (!cancelled) {
-          // 按 id 排序，保证稳定；修复原比较未处理相等情况导致的非稳定排序伪命题
-          setShows(
-            results
-              .slice()
-              .sort((a: Show, b: Show): number =>
-                a.id === b.id ? 0 : a.id < b.id ? -1 : 1
-              )
-          );
-        }
-      } catch (e: any) {
-        if (!cancelled) setBatchError(e);
-      } finally {
-        if (!cancelled) setEventsLoading(false);
-      }
-    }
-    loadDetails();
-    return () => {
-      cancelled = true;
+  function mapRawShow(raw: any): Show | null {
+    if (!raw) return null;
+    // viem 可能返回：
+    // 1) 数组形式（含数字索引和具名属性）
+    // 2) 纯对象形式 { id, startTime, ... }
+    const get = (kIdx: number, kName: string) => {
+      if (Array.isArray(raw)) return raw[kIdx];
+      return raw[kName as keyof typeof raw];
     };
-  }, [eventIds, eventManagerAddress, publicClient]);
+    try {
+      const id = get(0, "id");
+      if (typeof id === "undefined") return null;
+      const startTime = get(1, "startTime");
+      const endTime = get(2, "endTime");
+      const totalTickets = get(3, "totalTickets");
+      const ticketsSold = get(4, "ticketsSold");
+      const ticketPrice = get(5, "ticketPrice");
+      const organizer = get(6, "organizer");
+      const location = get(7, "location");
+      const name = get(8, "name");
+      const description = get(9, "description");
+      const metadataURI = get(10, "metadataURI");
+      const statusRaw = get(11, "status");
+      const statusNum = Number(statusRaw ?? 0);
+      return {
+        id: BigInt(id),
+        startTime: new Date(Number(startTime) * 1000),
+        endTime: new Date(Number(endTime) * 1000),
+        maxTickets: BigInt(totalTickets ?? 0),
+        soldTickets: BigInt(ticketsSold ?? 0),
+        ticketPrice: BigInt(ticketPrice ?? 0),
+        organizer: organizer || "0x0000000000000000000000000000000000000000",
+        location: location || "-",
+        name: name || "(未命名)",
+        description: description || "",
+        metadataURI: metadataURI || "",
+        status: statusNum as ShowStatus,
+        isActive: statusNum === ShowStatus.Active,
+        metadata: undefined,
+      } satisfies Show;
+    } catch (e) {
+      return null;
+    }
+  }
 
-  return {
-    shows,
-    isLoading: isLoading || eventsLoading,
-    error: error || batchError,
-    refetch,
-  };
+  const rawArray: any[] = Array.isArray(data) ? (data as any[]) : [];
+  const shows: Show[] = rawArray
+    .map(mapRawShow)
+    .filter((s): s is Show => !!s)
+    .sort((a, b) => (a.id === b.id ? 0 : a.id < b.id ? -1 : 1));
+
+  return { shows, isLoading, error, refetch };
 }
 
 // Hook: 获取单个演出/活动详情（原 useGetEvent）
-export function useGetShow(eventId: string | undefined) {
+export function useGetShow(showId: string | undefined) {
   const { chain } = useAccount();
-  const eventManagerAddress = getAddress("eventManager", chain?.id);
-  type EventTuple = [
-    bigint,
-    string,
-    string,
-    string,
-    bigint,
-    bigint,
-    bigint,
-    bigint,
-    bigint,
-    string,
-    boolean
-  ];
+  const showManagerAddress = getAddress("showManager", chain?.id);
+
+  // 无效 showId（空 / 非数字）时不发起请求
+  const enabled =
+    !!showManagerAddress &&
+    !!showId &&
+    showId.trim() !== "" &&
+    !Number.isNaN(Number(showId));
+
+  let numericId: bigint | undefined;
+  if (enabled) {
+    try {
+      numericId = BigInt(showId as string);
+      console.log("Parsed showId:", numericId);
+    } catch (e) {
+      // 解析失败则禁用请求
+      console.error("Failed to parse showId:", e);
+    }
+  }
+
   const {
-    data: eventDataRaw,
+    data: rawData,
     isLoading,
     error,
     refetch,
   } = useReadContract({
-    address: eventManagerAddress,
-    abi: ABIS.eventManager,
-    functionName: "getEvent",
-    args: eventId && eventManagerAddress ? [BigInt(eventId)] : undefined,
-    query: { enabled: !!eventId && !!eventManagerAddress },
+    address: showManagerAddress,
+    abi: ABIS.showManager,
+    functionName: "getShow",
+    args: numericId !== undefined ? [numericId] : undefined,
+    query: { enabled: enabled && numericId !== undefined },
   });
-  const eventData = eventDataRaw as unknown as EventTuple | undefined;
 
-  const show: Show | undefined = eventData
-    ? {
-        id: eventData[0],
-        name: eventData[1],
-        description: eventData[2],
-        location: eventData[3],
-        startTime: new Date(Number(eventData[4]) * 1000),
-        endTime: new Date(Number(eventData[5]) * 1000),
-        ticketPrice: eventData[6],
-        maxTickets: eventData[7],
-        soldTickets: eventData[8],
-        organizer: eventData[9],
-        isActive: eventData[10],
-      }
-    : undefined;
-
+  function mapSingle(raw: any): Show | undefined {
+    if (!raw) return undefined;
+    const get = (kIdx: number, kName: string) => {
+      if (Array.isArray(raw)) return raw[kIdx];
+      return raw[kName as keyof typeof raw];
+    };
+    try {
+      const id = get(0, "id");
+      if (typeof id === "undefined") return undefined;
+      const startTime = get(1, "startTime");
+      const endTime = get(2, "endTime");
+      const totalTickets = get(3, "totalTickets");
+      const ticketsSold = get(4, "ticketsSold");
+      const ticketPrice = get(5, "ticketPrice");
+      const organizer = get(6, "organizer");
+      const location = get(7, "location");
+      const name = get(8, "name");
+      const description = get(9, "description");
+      const metadataURI = get(10, "metadataURI");
+      const statusRaw = get(11, "status");
+      const statusNum = Number(statusRaw ?? 0);
+      return {
+        id: BigInt(id),
+        startTime: new Date(Number(startTime) * 1000),
+        endTime: new Date(Number(endTime) * 1000),
+        maxTickets: BigInt(totalTickets ?? 0),
+        soldTickets: BigInt(ticketsSold ?? 0),
+        ticketPrice: BigInt(ticketPrice ?? 0),
+        organizer: organizer || "0x0000000000000000000000000000000000000000",
+        location: location || "-",
+        name: name || "(未命名)",
+        description: description || "",
+        metadataURI: metadataURI || "",
+        status: statusNum as ShowStatus,
+        isActive: statusNum === ShowStatus.Active,
+        metadata: undefined,
+      };
+    } catch (_) {
+      return undefined;
+    }
+  }
+  const show: Show | undefined = mapSingle(rawData);
+  // console.log("Raw show data:", rawData, "Parsed show object:", show);
   return { show, isLoading, error, refetch };
 }
 
@@ -338,7 +332,7 @@ export function useCreateShow() {
   React.useEffect(() => {
     if (isSuccess) {
       queryClient.invalidateQueries({ queryKey: ["shows"] });
-      if (newShowId) {
+      if (typeof newShowId === "bigint") {
         queryClient.invalidateQueries({
           queryKey: ["show", newShowId.toString()],
         });
@@ -517,6 +511,76 @@ export function useTransferTicket() {
   }, [isSuccess, queryClient]);
 
   return { transferTicket, hash, isPending, isConfirming, isSuccess, error };
+}
+
+// 通用：映射状态 -> 标签与样式
+export function useShowStatusLabel() {
+  const getStatus = (status: ShowStatus | number | bigint | undefined) => {
+    const s = typeof status === "bigint" ? Number(status) : status;
+    switch (s) {
+      case ShowStatus.Upcoming:
+        return { label: "未开始", color: "bg-gray-100 text-gray-700" };
+      case ShowStatus.Active:
+        return { label: "售票中", color: "bg-green-100 text-green-700" };
+      case ShowStatus.Ended:
+        return { label: "已结束", color: "bg-blue-100 text-blue-700" };
+      case ShowStatus.Cancelled:
+        return { label: "已取消", color: "bg-red-100 text-red-700" };
+      default:
+        return { label: "未知", color: "bg-yellow-100 text-yellow-700" };
+    }
+  };
+  return { getStatus };
+}
+
+// 简单的 IPFS 元数据抓取 Hook（传入 Show 列表，批量补充 metadata）
+export function useEnrichShowsWithMetadata(shows: Show[]) {
+  const [enriched, setEnriched] = React.useState<Show[]>(shows);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    async function run() {
+      const needFetch = shows.filter(
+        (s) =>
+          s.metadataURI &&
+          !s.metadata &&
+          !s.metadataURI.startsWith("http-error:")
+      );
+      if (needFetch.length === 0) {
+        setEnriched(shows);
+        return;
+      }
+      const results = await Promise.all(
+        needFetch.map(async (s) => {
+          try {
+            // 通过可配置网关构建 URL
+            const url = buildIpfsHttpUrl(s.metadataURI!);
+            const resp = await fetch(url, { method: "GET" });
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const json = await resp.json().catch(() => null);
+            return { id: s.id, meta: json };
+          } catch (e: any) {
+            return { id: s.id, meta: { _error: e?.message || "fetch failed" } };
+          }
+        })
+      );
+      if (cancelled) return;
+      const map = new Map(results.map((r) => [r.id.toString(), r.meta]));
+      setEnriched(
+        shows.map((s) =>
+          map.has(s.id.toString())
+            ? { ...s, metadata: map.get(s.id.toString()) }
+            : s
+        )
+      );
+    }
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [shows]);
+
+  return enriched;
 }
 
 // (旧别名 useGetAllEvents / useGetEvent 已移除)

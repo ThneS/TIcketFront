@@ -1,8 +1,8 @@
-import React from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Show, ShowListParams, PaginatedShows } from '../types/show';
-import { fetchShows, fetchShow } from '../api/show';
-import { isApiEnabled } from '../api/request';
+import React from "react";
+import { useQuery } from "@tanstack/react-query";
+import type { Show, ShowListParams, PaginatedShows } from "../types/show";
+import { fetchShows, fetchShow } from "../api/show";
+import { isApiEnabled } from "../api/request";
 
 /**
  * Hook to fetch a list of shows
@@ -13,13 +13,14 @@ export function useShows(params: ShowListParams = {}) {
   const enabled = isApiEnabled();
 
   const query = useQuery({
-    queryKey: ['shows', params],
+    queryKey: ["shows", params],
     enabled,
     queryFn: () => fetchShows(params),
     staleTime: 30_000, // 30 seconds
     retry: (failureCount, error: unknown) => {
       // Don't retry on 4xx errors
-      if ((error as { status?: number })?.status >= 400 && (error as { status?: number })?.status < 500) {
+      const status = (error as { status?: number })?.status;
+      if (typeof status === "number" && status >= 400 && status < 500) {
         return false;
       }
       return failureCount < 2;
@@ -29,11 +30,11 @@ export function useShows(params: ShowListParams = {}) {
   // Normalize the data to always return Shows array and pagination info
   const normalizeData = (data: Show[] | PaginatedShows | undefined) => {
     if (!data) return { items: [], pagination: undefined };
-    
+
     if (Array.isArray(data)) {
       return { items: data, pagination: undefined };
     }
-    
+
     return {
       items: data.items || [],
       pagination: {
@@ -64,13 +65,14 @@ export function useShow(id: string | undefined) {
   const enabled = isApiEnabled() && Boolean(id);
 
   const query = useQuery({
-    queryKey: ['show', id],
+    queryKey: ["show", id],
     enabled,
     queryFn: () => fetchShow(id!),
     staleTime: 30_000, // 30 seconds
     retry: (failureCount, error: unknown) => {
       // Don't retry on 4xx errors
-      if ((error as { status?: number })?.status >= 400 && (error as { status?: number })?.status < 500) {
+      const status = (error as { status?: number })?.status;
+      if (typeof status === "number" && status >= 400 && status < 500) {
         return false;
       }
       return failureCount < 2;
@@ -97,11 +99,11 @@ export function usePaginatedShows(
   const result = useShows(params);
 
   const goToPage = (page: number) => {
-    setParams(prev => ({ ...prev, page }));
+    setParams((prev) => ({ ...prev, page }));
   };
 
   const changePageSize = (pageSize: number) => {
-    setParams(prev => ({ ...prev, pageSize, page: 1 }));
+    setParams((prev) => ({ ...prev, pageSize, page: 1 }));
   };
 
   const refresh = () => {
