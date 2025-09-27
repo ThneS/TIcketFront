@@ -21,3 +21,7 @@ export {
   useTransferTicket,
   type Show,
 } from "./useContracts";
+
+// Backend API hooks (REST)
+export { useBackendShow, useBackendShows } from "./useBackendShows";
+export { useShowData, useShowsData } from "./useShowData";

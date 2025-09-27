@@ -1,9 +1,8 @@
 import {
-  useGetAllShows,
-  type Show,
   useShowStatusLabel,
   useEnrichShowsWithMetadata,
 } from "../hooks/useContracts";
+import { useShowsData } from "../hooks";
 import { useNavigate } from "react-router-dom";
 import { WalletAwareButton } from "../components/auth/WalletAwareButton";
 import { formatEther } from "viem";
@@ -24,8 +23,16 @@ interface MockShow {
 
 export function Shows() {
   const navigate = useNavigate();
-  const { shows, isLoading, error } = useGetAllShows();
-  const enriched = useEnrichShowsWithMetadata(shows);
+  const {
+    data: unified,
+    source,
+    loading: isLoading,
+    error,
+    fetching,
+  } = useShowsData();
+  const enriched = useEnrichShowsWithMetadata(
+    (unified as any[])?.map((u: any) => u._contract ?? u) || []
+  );
   const { getStatus } = useShowStatusLabel();
 
   const mockShows: MockShow[] = [
@@ -90,9 +97,25 @@ export function Shows() {
     metadata?: any;
   }
 
+  // 定义缺失的 Show 接口（链上/统一后的演出对象）
+  interface Show {
+    id: bigint | number;
+    name: string;
+    description: string;
+    location: string;
+    startTime: Date;
+    ticketPrice: bigint;
+    maxTickets: bigint;
+    soldTickets: bigint;
+    isActive: boolean;
+    organizer: string;
+    status?: number;
+    metadata?: any;
+  }
+
   const getShowData = (show: Show | MockShow): ShowCardData => {
+    // MockShow: 具有 eventTime 字段
     if ("eventTime" in show) {
-      // MockShow 分支
       return {
         id: show.id,
         name: show.name,
@@ -106,7 +129,7 @@ export function Shows() {
         organizer: show.organizer,
       };
     }
-    // 链上 Show 分支
+    // 链上/统一 Show: 具有 startTime 字段
     return {
       id: Number(show.id),
       name: show.name,
@@ -154,6 +177,10 @@ export function Shows() {
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">演出列表</h1>
+        <div className="text-xs text-gray-500">
+          数据源: {source}
+          {fetching && !isLoading && <span className="ml-2">(刷新中)</span>}
+        </div>
         <WalletAwareButton
           requireWallet={false}
           onClick={() => navigate("/create-show")}
@@ -163,7 +190,7 @@ export function Shows() {
         </WalletAwareButton>
       </div>
 
-      {error && (
+      {!!error && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
           <p className="text-yellow-800">
             无法加载演出数据，显示模拟数据。请确保智能合约已正确部署。

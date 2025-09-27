@@ -1,7 +1,8 @@
 import { useParams, useNavigate } from "react-router-dom";
 // import { buildIpfsHttpUrl } from "../lib/ipfs.ts"; // 现阶段核心信息仅使用链上 getShow 数据，元数据统一放入附加属性
 import { useState, useEffect } from "react";
-import { useGetShow, useMintTicket } from "../hooks/useContracts";
+import { useMintTicket } from "../hooks/useContracts"; // 保留直接链上创建/购买逻辑
+import { useShowData } from "../hooks";
 import { useIpfsJson } from "../hooks/useIpfsJson";
 import { useWallet } from "../hooks/useWallet";
 import { formatEther } from "viem";
@@ -14,18 +15,34 @@ export function ShowDetail() {
 
   // 获取演出详情
   const {
-    show,
-    isLoading: eventLoading,
+    data: merged,
+    source,
+    loading: eventLoading,
     error: eventError,
-  } = useGetShow(id || undefined);
+  } = useShowData(id || undefined);
+  // unified show：优先使用合约结构；若仅 backend 则已在 hook 内适配为合约风格字段
+  const show: any =
+    merged && (merged as any)._contract ? (merged as any)._contract : merged;
+
+  // 适配多种可能字段（metadataURI / metadata_uri / meta.uri / ipfs）
+  const metadataUri: string | undefined = (() => {
+    if (!show || typeof show !== "object") return undefined;
+    return (
+      show.metadataURI ||
+      show.metadata_uri ||
+      show.ipfs ||
+      show?.meta?.uri ||
+      undefined
+    );
+  })();
 
   // 解析 metadata（若存在 metadataURI）
   const {
     data: metadata,
     isLoading: metaLoading,
     error: metaError,
-  } = useIpfsJson(show?.metadataURI, {
-    enabled: !!show?.metadataURI,
+  } = useIpfsJson(metadataUri, {
+    enabled: !!metadataUri,
     maxAgeMs: 10 * 60 * 1000,
   });
 
@@ -125,6 +142,7 @@ export function ShowDetail() {
         <div className="space-y-6">
           <div>
             <h1 className="text-3xl font-bold mb-2">{show.name}</h1>
+            <p className="text-xs text-gray-400">数据源: {source}</p>
             <p className="text-muted-foreground text-lg leading-relaxed">
               {show.description}
             </p>

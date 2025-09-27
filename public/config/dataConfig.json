@@ -1,0 +1,17 @@
+{
+  "dataSources": {
+    "showsList": "backend",
+    "showDetail": "contract"
+  },
+  "mergePolicy": {
+    "defaultMode": "coalesce",
+    "listFields": {
+      "description": "preferBackend",
+      "location": "preferBackend"
+    },
+    "detailFields": {
+      "description": "preferContract",
+      "location": "preferBackend"
+    }
+  }
+}
