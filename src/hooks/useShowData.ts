@@ -12,6 +12,14 @@ export interface UnifiedShowListItem {
   description: string;
   location: string;
   startTime: Date;
+  // 列表页也需要用到的关键字段
+  ticketPrice?: bigint;
+  maxTickets?: bigint;
+  soldTickets?: bigint;
+  isActive?: boolean;
+  organizer?: string;
+  metadataURI?: string;
+  status?: number;
   _contract?: any; // 合约原始对象
   _backend?: any; // 后端原始对象
 }
@@ -54,6 +62,13 @@ export function useShowsData(params: ShowListParams = {}): UseShowsDataResult {
           description: s.description,
           location: s.location,
           startTime: s.startTime,
+          ticketPrice: s.ticketPrice,
+          maxTickets: s.maxTickets,
+          soldTickets: s.soldTickets,
+          isActive: s.isActive,
+          organizer: s.organizer,
+          metadataURI: (s as any).metadataURI,
+          status: (s as any).status,
           _contract: s,
         }))
       : undefined;
@@ -79,6 +94,13 @@ export function useShowsData(params: ShowListParams = {}): UseShowsDataResult {
             description: n.description,
             location: n.location,
             startTime: n.startTime,
+            ticketPrice: n.ticketPrice,
+            maxTickets: n.maxTickets,
+            soldTickets: n.soldTickets,
+            isActive: n.isActive,
+            organizer: n.organizer,
+            metadataURI: n.metadataURI,
+            status: n.status,
             _backend: b,
           };
         })
@@ -132,8 +154,27 @@ export function useShowsData(params: ShowListParams = {}): UseShowsDataResult {
           ),
           location: mergeField("location", c.location, bn?.location),
           startTime: c.startTime,
+          ticketPrice: mergeField(
+            "ticketPrice",
+            c.ticketPrice,
+            bn?.ticketPrice
+          ),
+          maxTickets: mergeField("maxTickets", c.maxTickets, bn?.maxTickets),
+          soldTickets: mergeField(
+            "soldTickets",
+            c.soldTickets,
+            bn?.soldTickets
+          ),
+          isActive: mergeField("isActive", c.isActive, bn?.isActive),
+          organizer: mergeField("organizer", c.organizer, bn?.organizer),
+          metadataURI: mergeField(
+            "metadataURI",
+            (c as any).metadataURI,
+            bn?.metadataURI
+          ),
+          status: mergeField("status", (c as any).status, bn?.status),
           _contract: c,
-          _backend: bn ? (bn as any)._raw : undefined,
+          _backend: bn ? (bn as any)._backend : undefined,
         };
       })
     : undefined;

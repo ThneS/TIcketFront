@@ -1,4 +1,5 @@
 import type { Show, ShowListParams, PaginatedShows } from "../types/show";
+import { PAGINATION } from "../constants";
 import { http } from "./request";
 
 // Helper: convert pagination input into backend expected {limit, offset}
@@ -13,6 +14,11 @@ function normalizePagination(params: ShowListParams = {}): {
   if (page !== undefined && pageSize !== undefined) {
     const p = Math.max(1, page);
     return { limit: pageSize, offset: (p - 1) * pageSize };
+  }
+  if (page !== undefined && pageSize === undefined) {
+    const p = Math.max(1, page);
+    const d = PAGINATION.DEFAULT_PAGE_SIZE ?? 20;
+    return { limit: d, offset: (p - 1) * d };
   }
   if (pageSize !== undefined) {
     return { limit: pageSize, offset: 0 };

@@ -48,23 +48,34 @@ export function normalizeShowFromBackend(
   if (!show || typeof show !== "object") return undefined;
   const name = (show as any).name || "(未命名)";
   const description = (show as any).description || "";
-  const location = (show as any).location || (show as any).venue || "-";
-  const startTime = toDate((show as any).startTime || (show as any).eventTime);
+  const location =
+    (show as any).location || (show as any).venue || (show as any).place || "-";
+  const startTime = toDate(
+    (show as any).startTime ||
+      (show as any).eventTime ||
+      (show as any).event_time
+  );
   const ticketPrice = toBigint(
-    (show as any).ticketPrice || (show as any).price
+    (show as any).ticketPrice ||
+      (show as any).price ||
+      (show as any).ticket_price
   );
   const maxTickets = toBigint(
-    (show as any).maxTickets || (show as any).totalTickets
+    (show as any).maxTickets ||
+      (show as any).totalTickets ||
+      (show as any).max_tickets
   );
   const soldTickets = toBigint(
-    (show as any).soldTickets || (show as any).ticketsSold
+    (show as any).soldTickets ||
+      (show as any).ticketsSold ||
+      (show as any).sold_tickets
   );
   const organizer =
     (show as any).organizer ||
     (show as any).owner ||
     "0x0000000000000000000000000000000000000000";
   const isActive = (() => {
-    const v = (show as any).isActive;
+    const v = (show as any).isActive ?? (show as any).is_active;
     if (typeof v === "boolean") return v;
     if (typeof v === "number") return v === 1;
     if (typeof v === "string") return v === "1" || v.toLowerCase() === "true";
@@ -77,6 +88,30 @@ export function normalizeShowFromBackend(
     (show as any).ipfs ||
     (show as any)?.meta?.uri ||
     "";
+  // if ((import.meta as any)?.env?.DEV) {
+  try {
+    const showJson = JSON.stringify(
+      show,
+      (_k, v) =>
+        typeof v === "bigint"
+          ? v.toString()
+          : v instanceof Date
+          ? v.toISOString()
+          : v,
+      2
+    );
+    console.log("[normalize] show json:", showJson);
+  } catch (err) {
+    console.warn("[normalize] stringify show failed:", err);
+  }
+  console.log(
+    "[normalize] maxTickets",
+    maxTickets,
+    (show as any).maxTickets,
+    (show as any).totalTickets,
+    (show as any).max_tickets
+  );
+  // }
   return {
     id: (show as any).id?.toString?.() || (show as any).id || "0",
     name,

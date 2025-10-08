@@ -1,3 +1,4 @@
+import React from "react";
 import {
   useShowStatusLabel,
   useEnrichShowsWithMetadata,
@@ -30,9 +31,11 @@ export function Shows() {
     error,
     fetching,
   } = useShowsData();
-  const enriched = useEnrichShowsWithMetadata(
-    (unified as any[])?.map((u: any) => u._contract ?? u) || []
+  const showsInput = React.useMemo(
+    () => (unified as any[])?.map((u: any) => u._contract ?? u) || [],
+    [unified]
   );
+  const enriched = useEnrichShowsWithMetadata(showsInput);
   const { getStatus } = useShowStatusLabel();
 
   const mockShows: MockShow[] = [
@@ -113,6 +116,17 @@ export function Shows() {
     metadata?: any;
   }
 
+  // 将任意值安全转换为 bigint，不可用时返回 0n
+  const toBigIntSafe = (v: any): bigint => {
+    try {
+      if (typeof v === "bigint") return v;
+      if (typeof v === "number" && Number.isFinite(v))
+        return BigInt(Math.floor(v));
+      if (typeof v === "string" && v.trim() !== "") return BigInt(v);
+    } catch {}
+    return 0n;
+  };
+
   const getShowData = (show: Show | MockShow): ShowCardData => {
     // MockShow: 具有 eventTime 字段
     if ("eventTime" in show) {
@@ -129,20 +143,24 @@ export function Shows() {
         organizer: show.organizer,
       };
     }
-    // 链上/统一 Show: 具有 startTime 字段
+    // 链上/统一 Show 或后端列表项：可能缺少价格/库存等字段，这里做安全回退
+    const anyShow: any = show as any;
+    const start =
+      anyShow.startTime instanceof Date ? anyShow.startTime : new Date();
     return {
       id: Number(show.id),
-      name: show.name,
-      description: show.description,
-      venue: show.location,
-      eventTime: BigInt(Math.floor(show.startTime.getTime() / 1000)),
-      ticketPrice: show.ticketPrice,
-      maxTickets: show.maxTickets,
-      soldTickets: show.soldTickets,
-      isActive: show.isActive,
-      organizer: show.organizer,
-      status: show.status,
-      metadata: show.metadata,
+      name: anyShow.name || "(未命名)",
+      description: anyShow.description || "",
+      venue: anyShow.location || "-",
+      eventTime: BigInt(Math.floor(start.getTime() / 1000)),
+      ticketPrice: toBigIntSafe(anyShow.ticketPrice),
+      maxTickets: toBigIntSafe(anyShow.maxTickets),
+      soldTickets: toBigIntSafe(anyShow.soldTickets),
+      isActive: Boolean(anyShow.isActive),
+      organizer:
+        anyShow.organizer || "0x0000000000000000000000000000000000000000",
+      status: anyShow.status,
+      metadata: anyShow.metadata,
     };
   };
 

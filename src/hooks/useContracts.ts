@@ -536,9 +536,35 @@ export function useShowStatusLabel() {
 // 简单的 IPFS 元数据抓取 Hook（传入 Show 列表，批量补充 metadata）
 export function useEnrichShowsWithMetadata(shows: Show[]) {
   const [enriched, setEnriched] = React.useState<Show[]>(shows);
+  const enrichedRef = React.useRef(enriched);
+  React.useEffect(() => {
+    enrichedRef.current = enriched;
+  }, [enriched]);
+
+  // 数组标识简化为可比较 key，避免每次新数组导致无限循环
+  const depKey = React.useMemo(
+    () =>
+      shows
+        .map((s) => `${s.id.toString()}|${s.metadataURI ?? ""}|${!!s.metadata}`)
+        .join(";"),
+    [shows]
+  );
 
   React.useEffect(() => {
     let cancelled = false;
+    const simpleEqual = (a: Show[], b: Show[]) => {
+      if (a === b) return true;
+      if (a.length !== b.length) return false;
+      for (let i = 0; i < a.length; i++) {
+        if (a[i].id !== b[i].id) return false;
+        if (a[i].metadataURI !== b[i].metadataURI) return false;
+        const am = !!(a[i] as any).metadata;
+        const bm = !!(b[i] as any).metadata;
+        if (am !== bm) return false;
+      }
+      return true;
+    };
+
     async function run() {
       const needFetch = shows.filter(
         (s) =>
@@ -547,13 +573,14 @@ export function useEnrichShowsWithMetadata(shows: Show[]) {
           !s.metadataURI.startsWith("http-error:")
       );
       if (needFetch.length === 0) {
-        setEnriched(shows);
+        if (!simpleEqual(enrichedRef.current, shows)) {
+          setEnriched(shows);
+        }
         return;
       }
       const results = await Promise.all(
         needFetch.map(async (s) => {
           try {
-            // 通过可配置网关构建 URL
             const url = buildIpfsHttpUrl(s.metadataURI!);
             const resp = await fetch(url, { method: "GET" });
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -566,19 +593,21 @@ export function useEnrichShowsWithMetadata(shows: Show[]) {
       );
       if (cancelled) return;
       const map = new Map(results.map((r) => [r.id.toString(), r.meta]));
-      setEnriched(
-        shows.map((s) =>
-          map.has(s.id.toString())
-            ? { ...s, metadata: map.get(s.id.toString()) }
-            : s
-        )
+      const next = shows.map((s) =>
+        map.has(s.id.toString())
+          ? { ...s, metadata: map.get(s.id.toString()) }
+          : s
       );
+      if (!simpleEqual(enrichedRef.current, next)) {
+        setEnriched(next);
+      }
     }
     run();
     return () => {
       cancelled = true;
     };
-  }, [shows]);
+    // 仅当关键字段变化时触发，避免因数组引用变化导致死循环
+  }, [depKey]);
 
   return enriched;
 }
